@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new `install_mf6_disu_layers` gives each node a layer, and
   `calc_mf6_interp_factors` then interpolates layer by layer as for DISV;
   `get_cell_centres_mf6` returns DISU node centres
+- `mod2obs_mf6` takes `node_layers` for DISU grids (model type 33), so each
+  observation is interpolated from the nodes of its layer
 ### Changed
 ### Fixed
 

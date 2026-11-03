@@ -22,6 +22,7 @@ def mod2obs_mf6(
     no_interp_val=1.0e30,
     model_timeunit="d",
     time_extrap=1.0,
+    node_layers=None,
 ) -> dict:
     """Python implementation of mod2smp and mod2obs using modflow6 binary grid files.
 
@@ -35,7 +36,7 @@ def mod2obs_mf6(
         observation information.  Must contain columns "site", "x", "y",
         "datetime", and "layer"
     model_type: int
-        type of model.  Must be either 31 (dis mf6) or 32 (disv mf6)
+        type of model.  Must be 31 (dis mf6), 32 (disv mf6) or 33 (disu mf6)
     start_datetime: str | datetime
         the simulation start datetime
     depvar_ftype : int
@@ -52,6 +53,10 @@ def mod2obs_mf6(
         pandas style time unit.  Default is "d"ay
     time_extrap: float
         length of time units to extrapolate.  Default is 1.0 time unit
+    node_layers: array_like, optional
+        for a disu grid (model_type 33), the one-based layer of each node, so that
+        each observation is interpolated from the nodes of its layer.  A disu
+        binary grid file has no layers; without this, all nodes are in layer 1.
 
     Returns
     -------
@@ -90,10 +95,15 @@ def mod2obs_mf6(
     if depvar_ftype not in [1, 2]:
         raise Exception(f"unrecognized 'depvar_ftype':{depvar_ftype}")
 
+    if node_layers is not None and model_type != 33:
+        raise ValueError("node_layers is only used with model_type 33 (disu mf6)")
+
     if is_mf6:
         grid_info = lib.install_mf6_grid_from_file("grid", gridinfo_fname)
     else:
         raise NotImplementedError()
+    if node_layers is not None:
+        lib.install_mf6_disu_layers("grid", node_layers)
 
     del grid_info  # TODO: should this var be used anywhere?
 

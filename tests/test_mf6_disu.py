@@ -204,3 +204,49 @@ def test_disu_without_layers_is_a_single_layer(tmp_path):
     )
     assert success[0] == 1
     lib.uninstall_mf6_grid("disu")
+
+
+def test_mod2obs_mf6_on_disu_uses_the_node_layers(tmp_path):
+    import shutil
+
+    import pandas as pd
+
+    from pypestutils.helpers import mod2obs_mf6
+
+    name = "vorflow_sublayers"
+    for ext in (".disu.grb", ".hds"):  # mod2obs_mf6 writes next to the head file
+        shutil.copy(data_dir / f"{name}{ext}", tmp_path)
+    grb, hds = str(tmp_path / f"{name}.disu.grb"), str(tmp_path / f"{name}.hds")
+    start = pd.Timestamp("2000-01-01")
+    obs = pd.DataFrame(
+        {
+            "site": ["a", "b", "c"],
+            "x": [40.0, 110.0, 60.0],
+            "y": [30.0, 65.0, 95.0],
+            "layer": [1, 3, 5],  # layer 3 is a sublayer inside the pit
+            "datetime": [start + pd.Timedelta(days=1)] * 3,
+        }
+    )
+    layers = node_layers(name)
+    res = mod2obs_mf6(grb, hds, obs, 33, start, node_layers=layers)
+    simulated = res["interpolated_results"].set_index("site").simulated
+
+    lib = PestUtilsLib()
+    lib.install_mf6_grid_from_file(name, grb)
+    lib.install_mf6_disu_layers(name, layers)
+    lib.calc_mf6_interp_factors(
+        name, obs.x, obs.y, obs.layer, tmp_path / "f.txt", "text", tmp_path / "f.bln"
+    )
+    lib.uninstall_mf6_grid(name)
+    heads = read_disu_heads(hds)
+    expected = [
+        sum(w * heads[n] for n, w in f) for f in read_factors(tmp_path / "f.txt")
+    ]
+    np.testing.assert_allclose(simulated.loc[["a", "b", "c"]], expected, rtol=1e-10)
+
+    with pytest.raises(ValueError, match="node_layers"):
+        mod2obs_mf6(grb, hds, obs, 32, start, node_layers=layers)
+    # Without node layers a DISU grid has one layer, so wells below it fail.
+    with pytest.raises(PestUtilsLibError, match="greater than NLAY"):
+        mod2obs_mf6(grb, hds, obs, 33, start)
+    lib.uninstall_mf6_grid("grid")  # left installed by the failed call
