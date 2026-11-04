@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- `calc_mf6_interp_factors` tries rings of three cell centres first, then four, up to
+  seven; the factors are unchanged, and DISV grids of Voronoi cells run about 30 times faster
 ### Fixed
 
 ## [0.3.0] - 2025-02-12
