@@ -3926,7 +3926,9 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
        real(kind=c_double), intent(in)   :: power                  ! Power used in power AVETYPE
        real(kind=c_double), intent(out)  :: targval(ntarg)         ! Field at target points (1.1E31 if inactive)
 
-       integer                 :: jtarg,ksrc
+       integer                 :: jtarg,ksrc,ierr
+       integer                 :: nbx,nby,nbz,nbin,ib,ix,iy,iz,ipos
+       integer                 :: ix1,ix2,iy1,iy2,iz1,iz2
        double precision        :: xi,yi,zi
        double precision        :: aavert
        double precision        :: vvar,along,amid,cosang1,sinang1,ang1
@@ -3939,6 +3941,9 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
        double precision        :: dlim,pidiv180
        character(len=25)       :: varname
        character(len=20)       :: atemp
+       double precision        :: rfac,rmax,reach,binsize,xmin,ymin,zmin,xmax,ymax,zmax
+
+       integer, allocatable    :: binstart(:),binsrc(:),cursor(:)
 
 ! -- Initialisation
 
@@ -4039,6 +4044,60 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
          dlim=1.0d0
        end if
 
+! -- Source points are sorted into boxes a quarter as wide as the longest reach of the
+!    averaging function (beyond it the function is not summed), so that each target point
+!    visits only the boxes within its own reach. Too many boxes are avoided by widening them.
+
+       if((avetype.eq.2).or.(avetype.eq.3))then
+         rfac=sqrt(dlim)
+       else
+         rfac=1.0d0
+       end if
+       rmax=0.0d0
+       do jtarg=1,ntarg
+         if(active(jtarg).ne.0)then
+           rmax=max(rmax,rfac*max(ahmax(jtarg),ahmin(jtarg),avert(jtarg)))
+         end if
+       end do
+       xmin=minval(ecs)
+       xmax=maxval(ecs)
+       ymin=minval(ncs)
+       ymax=maxval(ncs)
+       zmin=minval(zcs)
+       zmax=maxval(zcs)
+       binsize=rmax/4.0d0
+       do
+         nbx=int((xmax-xmin)/binsize)+1
+         nby=int((ymax-ymin)/binsize)+1
+         nbz=int((zmax-zmin)/binsize)+1
+         if(dble(nbx)*dble(nby)*dble(nbz).le.8.0d0*dble(nsrc)+8.0d0) exit
+         binsize=binsize*2.0d0
+       end do
+       nbin=nbx*nby*nbz
+       allocate(binstart(nbin+1),cursor(nbin),binsrc(nsrc),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       binstart=0          ! an array
+       do ksrc=1,nsrc
+         ix=min(nbx,int((ecs(ksrc)-xmin)/binsize)+1)
+         iy=min(nby,int((ncs(ksrc)-ymin)/binsize)+1)
+         iz=min(nbz,int((zcs(ksrc)-zmin)/binsize)+1)
+         ib=ix+(iy-1)*nbx+(iz-1)*nbx*nby
+         binstart(ib+1)=binstart(ib+1)+1
+       end do
+       binstart(1)=1
+       do ib=2,nbin+1
+         binstart(ib)=binstart(ib)+binstart(ib-1)
+       end do
+       cursor=binstart(1:nbin)         ! an array
+       do ksrc=1,nsrc
+         ix=min(nbx,int((ecs(ksrc)-xmin)/binsize)+1)
+         iy=min(nby,int((ncs(ksrc)-ymin)/binsize)+1)
+         iz=min(nbz,int((zcs(ksrc)-zmin)/binsize)+1)
+         ib=ix+(iy-1)*nbx+(iz-1)*nbx*nby
+         binsrc(cursor(ib))=ksrc
+         cursor(ib)=cursor(ib)+1
+       end do
+
 ! -- Do the convolution
 
        do jtarg=1,ntarg
@@ -4065,7 +4124,19 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
          den_avert2=den_avert*den_avert
          den=0.0d0
          dsum=0.0d0
-         do ksrc=1,nsrc
+         reach=rfac*max(along,amid,aavert)
+         ix1=max(1,floor((xi-reach-xmin)/binsize)+1)
+         ix2=min(nbx,floor((xi+reach-xmin)/binsize)+1)
+         iy1=max(1,floor((yi-reach-ymin)/binsize)+1)
+         iy2=min(nby,floor((yi+reach-ymin)/binsize)+1)
+         iz1=max(1,floor((zi-reach-zmin)/binsize)+1)
+         iz2=min(nbz,floor((zi+reach-zmin)/binsize)+1)
+         do iz=iz1,iz2
+         do iy=iy1,iy2
+         do ix=ix1,ix2
+         ib=ix+(iy-1)*nbx+(iz-1)*nbx*nby
+         do ipos=binstart(ib),binstart(ib+1)-1
+           ksrc=binsrc(ipos)
            xdiff=ecs(ksrc)-xi
            ydiff=ncs(ksrc)-yi
            zdiff=zcs(ksrc)-zi
@@ -4127,6 +4198,9 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
            dsum=dsum+dtemp*iid(ksrc)
            den=den+dtemp*dtemp
          end do
+         end do
+         end do
+         end do
          if(den.le.0.0d0)then
            call utl_num2char(jtarg,atemp)
            write(amessage,300) trim(atemp)
@@ -4153,9 +4227,16 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
        'function ',a,'.')
        go to 9890
 
+9200   write(amessage,9210) trim(function_name)
+9210   format('Memory management error encountered in function ',a,'.')
+       go to 9890
+
 9890   fieldgen3d_sva2=1
 
 9900   continue
+       if(allocated(binstart)) deallocate(binstart,stat=ierr)
+       if(allocated(cursor)) deallocate(cursor,stat=ierr)
+       if(allocated(binsrc)) deallocate(binsrc,stat=ierr)
 
        return
 
