@@ -420,7 +420,8 @@ def _read_mfusg_values(lines, n, dtype, path):
             values.extend(next(lines))
     elif word == "OPEN/CLOSE":
         factor = float(control[2])
-        with open(os.path.join(os.path.dirname(path), control[1])) as f:
+        fname = control[1].strip("'\"").replace("\\", "/")  # .\file.ref on Windows
+        with open(os.path.join(os.path.dirname(path), fname)) as f:
             values = f.read().replace(",", " ").split()
     elif control[0].lstrip("-").isdigit() and int(control[0]) == 0:
         return np.full(n, float(control[1])).astype(dtype)  # fixed format, LOCAT 0
