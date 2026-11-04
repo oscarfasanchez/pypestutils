@@ -250,3 +250,52 @@ def test_mod2obs_mf6_on_disu_uses_the_node_layers(tmp_path):
     with pytest.raises(PestUtilsLibError, match="greater than NLAY"):
         mod2obs_mf6(grb, hds, obs, 33, start)
     lib.uninstall_mf6_grid("grid")  # left installed by the failed call
+
+
+def test_2d_grid_info_of_a_disu_layer():
+    from pypestutils.helpers import get_2d_grid_info_from_mf6_grb
+
+    grb = str(data_dir / "vorflow_sublayers.disu.grb")
+    layers = node_layers("vorflow_sublayers")
+    with pytest.raises(Exception, match="node_layers"):
+        get_2d_grid_info_from_mf6_grb(grb, layer=3)
+    info = get_2d_grid_info_from_mf6_grb(grb, layer=3, node_layers=layers)
+    assert info["nnodes"] == 30
+    np.testing.assert_array_equal(info["nodes"], np.flatnonzero(layers == 3))
+    lib = PestUtilsLib()
+    lib.install_mf6_grid_from_file("grid", grb)
+    x, y, _ = lib.get_cell_centres_mf6("grid", layers.size)
+    lib.uninstall_mf6_grid("grid")
+    np.testing.assert_allclose(info["x"], x[layers == 3])
+    np.testing.assert_allclose(info["y"], y[layers == 3])
+
+
+def test_2d_field_helpers_on_a_disu_layer(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # the helpers write their factor files here
+    import pandas as pd
+
+    from pypestutils.helpers import (
+        generate_2d_grid_realizations,
+        interpolate_with_sva_pilotpoints_2d,
+    )
+
+    grb = str(data_dir / "vorflow_sublayers.disu.grb")
+    layers = node_layers("vorflow_sublayers")
+    reals = generate_2d_grid_realizations(
+        grb, num_reals=3, variorange=40.0, layer=3, node_layers=layers
+    )
+    assert reals.shape == (3, 30) and np.isfinite(reals).all()
+    pp = pd.DataFrame(
+        {
+            "ppname": ["a", "b", "c"],
+            "x": [90.0, 110.0, 130.0],
+            "y": [50.0, 80.0, 60.0],
+            "value": [1.0, 2.0, 3.0],
+            "corrlen": 40.0,
+        }
+    )
+    res = interpolate_with_sva_pilotpoints_2d(
+        pp, grb, layer=3, node_layers=layers, verbose=False
+    )
+    assert res["result"].shape == (30,)
+    assert (res["result"] >= 1.0 - 1e-9).all() and (res["result"] <= 3.0 + 1e-9).all()

@@ -146,6 +146,28 @@ module function_interfaces
        integer(kind=c_int), intent(in)            :: layer(ncells)
     end function install_mf6_disu_layers
 
+    integer (kind=c_int) function install_mfusg_grid(gridname,ncells,nja,nvert,njavert, &
+                     layer,ia,ja,top,bot,vertx,verty,iavert,javert,cellx,celly)        &
+                     bind(c,name="install_mfusg_grid")
+       use iso_c_binding, only: c_int,c_char,c_double
+       character (kind=c_char,len=1), intent(in)  :: gridname(*)
+       integer(kind=c_int), intent(in)            :: ncells
+       integer(kind=c_int), intent(in)            :: nja
+       integer(kind=c_int), intent(in)            :: nvert
+       integer(kind=c_int), intent(in)            :: njavert
+       integer(kind=c_int), intent(in)            :: layer(ncells)
+       integer(kind=c_int), intent(in)            :: ia(ncells+1)
+       integer(kind=c_int), intent(in)            :: ja(nja)
+       real(kind=c_double), intent(in)            :: top(ncells)
+       real(kind=c_double), intent(in)            :: bot(ncells)
+       real(kind=c_double), intent(in)            :: vertx(nvert)
+       real(kind=c_double), intent(in)            :: verty(nvert)
+       integer(kind=c_int), intent(in)            :: iavert(ncells+1)
+       integer(kind=c_int), intent(in)            :: javert(njavert)
+       real(kind=c_double), intent(in)            :: cellx(ncells)
+       real(kind=c_double), intent(in)            :: celly(ncells)
+    end function install_mfusg_grid
+
     integer (kind=c_int) function calc_mf6_interp_factors(             &
                               gridname,                                &
                               npts,ecoord,ncoord,layer,                &
@@ -182,6 +204,27 @@ module function_interfaces
            real(kind=c_double), intent(out)           :: simtime(ntime)
            real(kind=c_double), intent(out)           :: simstate(ntime,npts)
     end function interp_from_mf6_depvar_file
+
+    integer (kind=c_int) function interp_from_mfusg_depvar_file(               &
+                         depvarfile,factorfile,factorfiletype,                 &
+                         ntime,vartype,iprec,interpthresh,reapportion,         &
+                         nointerpval,npts,nproctime,simtime,simstate)          &
+                     bind(c,name="interp_from_mfusg_depvar_file")
+           use iso_c_binding, only: c_int,c_char,c_double
+           character(kind=c_char,len=1), intent(in)   :: depvarfile(*)
+           character(kind=c_char,len=1), intent(in)   :: factorfile(*)
+           integer(kind=c_int), intent(in)            :: factorfiletype
+           integer(kind=c_int), intent(in)            :: ntime
+           character (kind=c_char,len=1), intent(in)  :: vartype(*)
+           integer(kind=c_int), intent(in)            :: iprec
+           real(kind=c_double), intent(in)            :: interpthresh
+           integer(kind=c_int), intent(in)            :: reapportion
+           real(kind=c_double), intent(in)            :: nointerpval
+           integer(kind=c_int), intent(in)            :: npts
+           integer(kind=c_int), intent(out)           :: nproctime
+           real(kind=c_double), intent(out)           :: simtime(ntime)
+           real(kind=c_double), intent(out)           :: simstate(ntime,npts)
+    end function interp_from_mfusg_depvar_file
 
     integer (kind=c_int) function extract_flows_from_cbc_file(     &
                          cbcfile,flowtype,isim,iprec,              &

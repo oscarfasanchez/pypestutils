@@ -602,6 +602,97 @@ class PestUtilsLib:
             gridname,
         )
 
+    def install_mfusg_grid(
+        self,
+        gridname: str,
+        layer: npt.ArrayLike,
+        ia: npt.ArrayLike,
+        ja: npt.ArrayLike,
+        top: npt.ArrayLike,
+        bot: npt.ArrayLike,
+        vertices: npt.ArrayLike,
+        iavert: npt.ArrayLike,
+        javert: npt.ArrayLike,
+        cellx: npt.ArrayLike,
+        celly: npt.ArrayLike,
+    ) -> None:
+        """Install a MODFLOW-USG unstructured grid from arrays.
+
+        The layers, connections, tops and bottoms come from the DISU file
+        (NODLAY, IAC, JA, TOP, BOT); the vertices and centres of each node from
+        the grid specification (GSF) file. The grid is then used like an
+        installed MODFLOW 6 DISU grid with known layers: see
+        :meth:`calc_mf6_interp_factors` and :meth:`get_cell_centres_mf6`.
+        All indices are one-based, as in the model files.
+
+        Parameters
+        ----------
+        gridname : str
+            Unique name for the grid.
+        layer : array_like
+            Layer of each node, with shape (ncells,).
+        ia : array_like
+            Start of each node's connections in ``ja``, with shape (ncells+1,);
+            ``ia[0]`` is 1 and ``ia[-1]`` is ``len(ja) + 1``.
+        ja : array_like
+            Connected nodes, each node itself first, as in the DISU file.
+        top, bot : array_like
+            Node tops and bottoms, each with shape (ncells,).
+        vertices : array_like
+            Vertex x and y, with shape (nvert, 2).
+        iavert : array_like
+            Start of each node's vertices in ``javert``, with shape (ncells+1,).
+        javert : array_like
+            Vertices of each node, in order around it.
+        cellx, celly : array_like
+            Node centres, each with shape (ncells,).
+        """
+        layer = np.asarray(layer, np.int32, order="F")
+        ncells = layer.size
+        ia = np.asarray(ia, np.int32, order="F")
+        ja = np.asarray(ja, np.int32, order="F")
+        iavert = np.asarray(iavert, np.int32, order="F")
+        javert = np.asarray(javert, np.int32, order="F")
+        vertices = np.asarray(vertices, np.float64)
+        if vertices.ndim != 2 or vertices.shape[1] != 2:
+            raise ValueError("vertices must have shape (nvert, 2)")
+        arrays = {
+            name: np.asarray(value, np.float64, order="F")
+            for name, value in dict(top=top, bot=bot, cellx=cellx, celly=celly).items()
+        }
+        for name, ar in dict(**arrays, layer=layer).items():
+            if ar.shape != (ncells,):
+                raise ValueError(f"{name} must have shape ({ncells},)")
+        for name, ar in dict(ia=ia, iavert=iavert).items():
+            if ar.shape != (ncells + 1,):
+                raise ValueError(f"{name} must have shape ({ncells + 1},)")
+        res = self.pestutils.install_mfusg_grid(
+            byref(self.create_char_array(gridname, "LENGRIDNAME")),
+            byref(c_int(ncells)),
+            byref(c_int(ja.size)),
+            byref(c_int(vertices.shape[0])),
+            byref(c_int(javert.size)),
+            layer,
+            ia,
+            ja,
+            arrays["top"],
+            arrays["bot"],
+            np.asarray(vertices[:, 0], order="F"),
+            np.asarray(vertices[:, 1], order="F"),
+            iavert,
+            javert,
+            arrays["cellx"],
+            arrays["celly"],
+        )
+        if res != 0:
+            raise PestUtilsLibError(self.retrieve_error_message())
+        self.logger.info(
+            "installed mfusg grid %r with %d nodes in %d layers",
+            gridname,
+            ncells,
+            layer.max(),
+        )
+
     def calc_mf6_interp_factors(
         self,
         gridname: str,
@@ -734,6 +825,95 @@ class PestUtilsLib:
             raise PestUtilsLibError(self.retrieve_error_message())
         self.logger.info(
             "interpolated %d points from mf6 depvar file %r", npts, depvarfile.name
+        )
+        return {
+            "nproctime": nproctime.value,
+            "simtime": simtime.copy("A"),
+            "simstate": simstate.copy("A"),
+        }
+
+    def interp_from_mfusg_depvar_file(
+        self,
+        depvarfile: str | PathLike,
+        factorfile: str | PathLike,
+        factorfiletype: int | str | enum.FactorFileType,
+        ntime: int,
+        vartype: str,
+        iprec: int | str | enum.Prec,
+        interpthresh: float,
+        reapportion: int | bool,
+        nointerpval: float,
+        npts: int,
+    ) -> dict:
+        """Interpolate points from a MODFLOW-USG unstructured-grid binary file.
+
+        Uses interpolation factors calculated by :meth:`calc_mf6_interp_factors`
+        for a grid installed with :meth:`install_mfusg_grid`.
+
+        Parameters
+        ----------
+        depvarfile : str or PathLike
+            Name of binary file to read, e.g. heads of an unstructured grid.
+        factorfile : str or PathLike
+            File containing spatial interpolation factors.
+        factorfiletype : int, str or enum.FactorFileType
+            Use 0 for binary; 1 for text.
+        ntime : int
+            Number of output times.
+        vartype : str
+            Only read arrays of this type.
+        iprec : int, str or enum.Prec
+            Precision of the file: 1 (single, mfusg) or 2 (double, mfusgdbl).
+        interpthresh : float
+            Absolute threshold for dry or inactive.
+        reapportion : int or bool
+            Use 0 for no (False); 1 for yes (True).
+        nointerpval : float
+            Value to use where interpolation is not possible.
+        npts : int
+            Number of points for interpolation.
+
+        Returns
+        -------
+        nproctime : int
+            Number of processed simulation times.
+        simtime : npt.NDArray[np.float64]
+            Simulation times, with shape (ntime,).
+        simstate : npt.NDArray[np.float64]
+            Interpolated system states, with shape (ntime, npts).
+        """
+        depvarfile = Path(depvarfile)
+        if not depvarfile.is_file():
+            raise FileNotFoundError(f"could not find depvarfile {depvarfile}")
+        factorfile = Path(factorfile)
+        if not factorfile.is_file():
+            raise FileNotFoundError(f"could not find factorfile {factorfile}")
+        if isinstance(factorfiletype, str):
+            factorfiletype = enum.FactorFileType.get_value(factorfiletype)
+        if isinstance(iprec, str):
+            iprec = enum.Prec.get_value(iprec)
+        simtime = np.zeros(ntime, np.float64, order="F")
+        simstate = np.zeros((ntime, npts), np.float64, order="F")
+        nproctime = c_int()
+        res = self.pestutils.interp_from_mfusg_depvar_file(
+            byref(self.create_char_array(bytes(depvarfile), "LENFILENAME")),
+            byref(self.create_char_array(bytes(factorfile), "LENFILENAME")),
+            byref(c_int(factorfiletype)),
+            byref(c_int(ntime)),
+            byref(self.create_char_array(vartype, "LENVARTYPE")),
+            byref(c_int(iprec)),
+            byref(c_double(interpthresh)),
+            byref(c_int(reapportion)),
+            byref(c_double(nointerpval)),
+            byref(c_int(npts)),
+            byref(nproctime),
+            simtime,
+            simstate,
+        )
+        if res != 0:
+            raise PestUtilsLibError(self.retrieve_error_message())
+        self.logger.info(
+            "interpolated %d points from mfusg depvar file %r", npts, depvarfile.name
         )
         return {
             "nproctime": nproctime.value,

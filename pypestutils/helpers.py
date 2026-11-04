@@ -201,6 +201,149 @@ def mod2obs_mf6(
     return {"all_results": allresults_df, "interpolated_results": obsdf}
 
 
+def mod2obs_mfusg(
+    disu_fname: str,
+    gsf_fname: str,
+    depvar_fname: str,
+    obscsv_fname: str,
+    start_datetime: str | pd.TimeStamp,
+    depvar_name="head",
+    interp_thresh=1.0e30,
+    no_interp_val=1.0e30,
+    model_timeunit="d",
+    time_extrap=1.0,
+) -> dict:
+    """Python implementation of usgmod2obs for MODFLOW-USG unstructured grids.
+
+    Interpolation factors are calculated as for a MODFLOW 6 DISV grid, within
+    the layer of each observation; the layers are those of the DISU file.
+
+    Parameters
+    ----------
+    disu_fname: str
+        MODFLOW-USG DISU file (layers, connections, tops and bottoms)
+    gsf_fname: str
+        grid specification file of the same grid (node vertices and centres)
+    depvar_fname: str
+        MODFLOW-USG binary file of an unstructured grid, single or double precision
+    obscsv_fname: str | pd.DataFrame
+        observation information.  Must contain columns "site", "x", "y",
+        "datetime", and "layer"
+    start_datetime: str | datetime
+        the simulation start datetime
+    depvar_name: str
+        the name of the dependent variable in `depvar_fname` to extract
+        (for example "head")
+    interp_thresh: float
+        the upper limit above which extracted values are treated as invalid.
+        Default is 1.0+30
+    no_interp_val: float
+        value used to fill invalid/null extracted/interpolated values
+    model_time_unit: str
+        pandas style time unit.  Default is "d"ay
+    time_extrap: float
+        length of time units to extrapolate.  Default is 1.0 time unit
+
+    Returns
+    -------
+    all_results: pd.DataFrame
+        all simulated times at observation locations (ie mod2smp)
+    interpolated_results: pd.DataFrame
+        temporally interpolated simulated results at observation locations
+        (ie mod2obs)
+    """
+    for fname in [disu_fname, gsf_fname, depvar_fname]:
+        assert os.path.exists(fname), f"file {fname} not found"
+    lib = PestUtilsLib()
+    grid = get_grid_info_from_mfusg_files(disu_fname, gsf_fname)
+    lib.install_mfusg_grid("grid", **{k: grid[k] for k in MFUSG_GRID_ARGS})
+    if isinstance(start_datetime, str):
+        start_datetime = pd.to_datetime(start_datetime)
+    depvar_info = lib.inquire_modflow_binary_file_specs(depvar_fname, "", 22, 1)
+
+    if isinstance(obscsv_fname, str):
+        if not os.path.exists(obscsv_fname):
+            raise Exception(f"obscsv_fname '{obscsv_fname}' not found")
+        obsdf = pd.read_csv(os.path.join(obscsv_fname), parse_dates=["datetime"])
+    elif isinstance(obscsv_fname, pd.DataFrame):
+        obsdf = obscsv_fname.copy()
+    else:
+        raise Exception(
+            "obscsv arg type not recognized "
+            f"(looking for str or pd.DataFrame):'{type(obscsv_fname)}'"
+        )
+    obsdf.columns = [c.lower() for c in obsdf.columns]
+    for req_col in ["site", "x", "y", "datetime", "layer"]:
+        if req_col not in obsdf.columns:
+            raise Exception(f"observation dataframe missing column '{req_col}'")
+    usitedf = obsdf.groupby("site").first()
+    pth = os.path.split(depvar_fname)[0]
+    fac_file = os.path.join(pth, "obs_interp_fac.bin")
+    bln_file = fac_file.replace(".bin", ".bln")
+    interp_fac_results = lib.calc_mf6_interp_factors(
+        "grid",
+        usitedf.x.values,
+        usitedf.y.values,
+        usitedf.layer.values,
+        fac_file,
+        "binary",
+        bln_file,
+    )
+    if 0 in interp_fac_results:
+        print(
+            "warning: "
+            "the following site(s) failed to have interpolation factors calculated:"
+        )
+        fsites = usitedf.reset_index().site.iloc[interp_fac_results == 0].to_list()
+        print(fsites)
+    all_results = lib.interp_from_mfusg_depvar_file(
+        depvar_fname,
+        fac_file,
+        "binary",
+        depvar_info["ntime"],
+        depvar_name,
+        depvar_info["iprec"],
+        interp_thresh,
+        True,
+        no_interp_val,
+        usitedf.shape[0],
+    )
+    datetimes = start_datetime + pd.to_timedelta(
+        all_results["simtime"], unit=model_timeunit
+    )
+    allresults_df = pd.DataFrame(
+        all_results["simstate"], index=datetimes, columns=usitedf.index
+    )
+    allresults_df.to_csv(depvar_fname + ".all.csv")
+
+    if "totim" in obsdf:
+        print("WARNING: replacing existing 'totim' column in observation dataframe")
+    obsdf.loc[:, "totim"] = obsdf.datetime.apply(lambda x: x - start_datetime).dt.days
+
+    usite = obsdf.site.unique().tolist()
+    usite.sort()
+    usite_dict = {s: c for s, c in zip(usite, np.arange(len(usite), dtype=int))}
+    obsdf.loc[:, "isite"] = obsdf.site.apply(lambda x: usite_dict[x])
+    obsdf.sort_values(by=["isite", "totim"], inplace=True)
+
+    interp_results = lib.interp_to_obstime(
+        all_results["nproctime"],
+        all_results["simtime"],
+        all_results["simstate"],
+        interp_thresh,
+        "L",
+        time_extrap,
+        no_interp_val,
+        obsdf.isite.values,
+        obsdf.totim.values,
+    )
+
+    obsdf.loc[:, "simulated"] = interp_results
+    lib.uninstall_mf6_grid("grid")
+    lib.free_all_memory()
+    return {"all_results": allresults_df, "interpolated_results": obsdf}
+
+
 def get_grid_info_from_gridspec(gridspec_fname: str) -> dict:
     """Read structured grid info from a PEST-style grid specification file.
 
@@ -251,17 +394,217 @@ def get_grid_info_from_mf6_grb(grb_fname: str) -> dict:
     return data
 
 
-def get_2d_grid_info_from_file(fname: str, layer=None) -> dict:
+MFUSG_GRID_ARGS = [
+    "layer",
+    "ia",
+    "ja",
+    "top",
+    "bot",
+    "vertices",
+    "iavert",
+    "javert",
+    "cellx",
+    "celly",
+]
+
+
+def _read_mfusg_values(lines, n, dtype, path):
+    """Read one MODFLOW array (U1DREL/U1DINT style) of ``n`` values from ``lines``."""
+    control = next(lines)
+    word = control[0].upper()
+    if word == "CONSTANT":
+        return np.full(n, float(control[1])).astype(dtype)
+    if word == "INTERNAL":
+        values, factor = [], float(control[1])
+        while len(values) < n:
+            values.extend(next(lines))
+    elif word == "OPEN/CLOSE":
+        factor = float(control[2])
+        with open(os.path.join(os.path.dirname(path), control[1])) as f:
+            values = f.read().replace(",", " ").split()
+    elif control[0].lstrip("-").isdigit() and int(control[0]) == 0:
+        return np.full(n, float(control[1])).astype(dtype)  # fixed format, LOCAT 0
+    else:
+        raise NotImplementedError(f"array control line {' '.join(control)!r} in {path}")
+    values = np.array(values[:n], dtype=float) * factor
+    if len(values) != n:
+        raise ValueError(f"expected {n} values after {' '.join(control)!r} in {path}")
+    return values.astype(dtype)
+
+
+def read_mfusg_disu(disu_fname: str) -> dict:
+    """Read the layers, tops, bottoms and connections of a MODFLOW-USG DISU file.
+
+    Supports arrays given as CONSTANT, INTERNAL (free format) and OPEN/CLOSE.
+
+    Parameters
+    ----------
+    disu_fname: str
+        MODFLOW-USG DISU file
+
+    Returns
+    -------
+    disu: dict
+        "nodes", "nlay", "njag", "ivsd", "nodelay", "top", "bot", "iac"
+        and "ja" (one-based, each node itself first)
+    """
+    with open(disu_fname) as f:
+        lines = iter(
+            [
+                line.replace(",", " ").split()
+                for line in f
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+        )
+    nodes, nlay, njag, ivsd = (int(v) for v in next(lines)[:4])
+    laycbd = []
+    while len(laycbd) < nlay:
+        laycbd.extend(next(lines))
+    nodelay = _read_mfusg_values(lines, nlay, int, disu_fname)
+    top = np.concatenate(
+        [_read_mfusg_values(lines, n, float, disu_fname) for n in nodelay]
+    )
+    bot = np.concatenate(
+        [_read_mfusg_values(lines, n, float, disu_fname) for n in nodelay]
+    )
+    for n in nodelay[:1] if ivsd == -1 else nodelay:  # AREA, not needed
+        _read_mfusg_values(lines, n, float, disu_fname)
+    iac = _read_mfusg_values(lines, nodes, int, disu_fname)
+    ja = _read_mfusg_values(lines, njag, int, disu_fname)
+    if nodelay.sum() != nodes or iac.sum() != njag:
+        raise ValueError(
+            f"NODELAY or IAC do not add up to NODES or NJAG in {disu_fname}"
+        )
+    return {
+        "nodes": nodes,
+        "nlay": nlay,
+        "njag": njag,
+        "ivsd": ivsd,
+        "nodelay": nodelay,
+        "top": top,
+        "bot": bot,
+        "iac": iac,
+        "ja": ja,
+    }
+
+
+def read_mfusg_gsf(gsf_fname: str) -> dict:
+    """Read node centres, layers and vertices from a MODFLOW-USG GSF file.
+
+    A node may list the vertices of its top and of its bottom; its plan
+    outline is the first occurrence of each x, y among them.
+
+    Parameters
+    ----------
+    gsf_fname: str
+        grid specification (GSF) file
+
+    Returns
+    -------
+    gsf: dict
+        "x", "y", "z", "layer" (one-based) and "area" per node; "vertices"
+        with shape (nvert, 2); "iavert" and "javert" (one-based)
+    """
+    with open(gsf_fname) as f:
+        f.readline()
+        tokens = f.read().split()
+    nnode, nvert = int(tokens[0]), int(tokens[4])
+    pos = 5
+    xyz = np.array(tokens[pos : pos + 3 * nvert], dtype=float).reshape(nvert, 3)
+    pos += 3 * nvert
+    x, y, z, area = (np.zeros(nnode) for _ in range(4))
+    layer = np.zeros(nnode, dtype=int)
+    iavert, javert = [1], []
+    for i in range(nnode):
+        x[i], y[i], z[i] = (float(v) for v in tokens[pos + 1 : pos + 4])
+        layer[i], m = int(tokens[pos + 4]), int(tokens[pos + 5])
+        ring, seen = [], set()
+        for vid in (int(v) for v in tokens[pos + 6 : pos + 6 + m]):
+            if tuple(xyz[vid - 1, :2]) not in seen:
+                seen.add(tuple(xyz[vid - 1, :2]))
+                ring.append(vid)
+        pos += 6 + m
+        rx, ry = xyz[np.array(ring) - 1, 0], xyz[np.array(ring) - 1, 1]
+        area[i] = 0.5 * abs(np.dot(rx, np.roll(ry, -1)) - np.dot(ry, np.roll(rx, -1)))
+        javert.extend(ring)
+        iavert.append(len(javert) + 1)
+    return {
+        "x": x,
+        "y": y,
+        "z": z,
+        "layer": layer,
+        "area": area,
+        "vertices": xyz[:, :2].copy(),
+        "iavert": np.array(iavert),
+        "javert": np.array(javert),
+    }
+
+
+def get_grid_info_from_mfusg_files(disu_fname: str, gsf_fname: str) -> dict:
+    """Read MODFLOW-USG grid info from its DISU and GSF files.
+
+    The result holds the arguments of ``PestUtilsLib.install_mfusg_grid``
+    (listed in ``MFUSG_GRID_ARGS``) as well as "x", "y", "z", "area",
+    "nodelay" and "ncells".
+
+    Parameters
+    ----------
+    disu_fname: str
+        MODFLOW-USG DISU file
+    gsf_fname: str
+        grid specification file of the same grid
+
+    Returns
+    -------
+    grid_info: dict
+        grid information
+    """
+    for fname in [disu_fname, gsf_fname]:
+        if not os.path.exists(fname):
+            raise FileNotFoundError(fname)
+    disu = read_mfusg_disu(disu_fname)
+    gsf = read_mfusg_gsf(gsf_fname)
+    layer = np.repeat(np.arange(1, disu["nlay"] + 1), disu["nodelay"])
+    if len(gsf["x"]) != disu["nodes"] or (gsf["layer"] != layer).any():
+        raise ValueError(
+            f"{gsf_fname} does not match the nodes and layers of {disu_fname}"
+        )
+    return {
+        "ncells": disu["nodes"],
+        "nodelay": disu["nodelay"],
+        "layer": layer,
+        "ia": np.concatenate([[1], 1 + np.cumsum(disu["iac"])]),
+        "ja": disu["ja"],
+        "top": disu["top"],
+        "bot": disu["bot"],
+        "vertices": gsf["vertices"],
+        "iavert": gsf["iavert"],
+        "javert": gsf["javert"],
+        "cellx": gsf["x"],
+        "celly": gsf["y"],
+        "x": gsf["x"],
+        "y": gsf["y"],
+        "z": 0.5 * (disu["top"] + disu["bot"]),
+        "area": gsf["area"],
+    }
+
+
+def get_2d_grid_info_from_file(fname: str, layer=None, node_layers=None) -> dict:
     """Try to read 2-D grid info from a variety of filename sources.
 
     Parameters
     ----------
     fname: str
-        filename that stores 2-D grid info.  Optionally, a pandas DataFrame
+        filename that stores 2-D grid info: a PEST grid specification file,
+        a MODFLOW-6 binary grid file, a MODFLOW-USG grid specification
+        (".gsf") file or a ".csv" file.  Optionally, a pandas DataFrame
         at least columns 'x','y' and possibly 'layer'.
     layer: int (optional)
         the (one-based) layer number to use for 2-D.  If None and
-        grid info is 3-D, a value of 1 is used
+        grid info is 3-D, a value of 1 is used.  Rows of a DataFrame with
+        a 'layer' column are restricted to this layer.
+    node_layers: array_like (optional)
+        for a MODFLOW-6 DISU binary grid file, the one-based layer of each node
 
     Returns
     -------
@@ -277,12 +620,16 @@ def get_2d_grid_info_from_file(fname: str, layer=None) -> dict:
             grid_info.columns = [c.lower() for c in grid_info.columns]
             fname = grid_info  # for  checks and processing below
 
+        elif fname.lower().endswith(".gsf"):
+            grid_info = get_2d_grid_info_from_mfusg_gsf(fname, layer=layer)
         else:
             try:
                 grid_info = get_grid_info_from_gridspec(fname)
             except Exception:
                 try:
-                    grid_info = get_2d_grid_info_from_mf6_grb(fname, layer=layer)
+                    grid_info = get_2d_grid_info_from_mf6_grb(
+                        fname, layer=layer, node_layers=node_layers
+                    )
                 except Exception:
                     raise Exception(f"error getting grid info from file '{fname}'")
 
@@ -297,13 +644,15 @@ def get_2d_grid_info_from_file(fname: str, layer=None) -> dict:
                 "'layer' arg is not None but 'layer' not found in"
                 "grid info dataframe..."
             )
+        if layer is not None and "layer" in fname.columns:
+            fname = fname.loc[fname["layer"].values == layer]
         # I think these should just be references to column values (not copies)
         grid_info = {c: fname[c].values for c in fname.columns}
 
     return grid_info
 
 
-def get_2d_grid_info_from_mf6_grb(grb_fname: str, layer=None) -> dict:
+def get_2d_grid_info_from_mf6_grb(grb_fname: str, layer=None, node_layers=None) -> dict:
     """Read grid info from a MODFLOW-6 binary grid file.
 
     Parameters
@@ -313,6 +662,11 @@ def get_2d_grid_info_from_mf6_grb(grb_fname: str, layer=None) -> dict:
     layer: int (optional)
         the layer number to use for 2-D.  If None,
         a value of 1 is used
+    node_layers: array_like (optional)
+        for a DISU grid, the one-based layer of each node.  A DISU binary grid
+        file has no layers, so it is required for DISU.  The result then
+        holds the layer's nodes only, and "nodes" gives their (zero-based)
+        positions in the DISU node array.
 
     Returns
     -------
@@ -359,7 +713,57 @@ def get_2d_grid_info_from_mf6_grb(grb_fname: str, layer=None) -> dict:
         grid_info["nnodes"] = ncpl
         grid_info["x"] = x
         grid_info["y"] = y
+
+    elif grid_info["idis"] == 3:
+        if node_layers is None:
+            raise Exception(
+                "a DISU binary grid file has no layers: "
+                "pass 'node_layers' to select the nodes of a layer"
+            )
+        node_layers = np.asarray(node_layers)
+        if node_layers.shape != x.shape:
+            raise Exception(f"'node_layers' must have one value per node ({x.size})")
+        layer = 1 if layer is None else layer
+        nodes = np.flatnonzero(node_layers == layer)
+        if nodes.size == 0:
+            raise Exception(f"no nodes in layer {layer}")
+        grid_info["nodes"] = nodes
+        grid_info["nnodes"] = nodes.size
+        grid_info["x"] = x[nodes]
+        grid_info["y"] = y[nodes]
     return grid_info
+
+
+def get_2d_grid_info_from_mfusg_gsf(gsf_fname: str, layer=None) -> dict:
+    """Read 2-D grid info of one layer from a MODFLOW-USG grid specification file.
+
+    Parameters
+    ----------
+    gsf_fname: str
+        MODFLOW-USG grid specification (GSF) file
+    layer: int (optional)
+        the (one-based) layer number to use.  If None, a value of 1 is used
+
+    Returns
+    -------
+    grid_info: dict
+        "x", "y" and "area" of the layer's nodes, "nnodes", and "nodes",
+        their (zero-based) positions in the node array
+    """
+    if not os.path.exists(gsf_fname):
+        raise FileNotFoundError(gsf_fname)
+    gsf = read_mfusg_gsf(gsf_fname)
+    layer = 1 if layer is None else layer
+    nodes = np.flatnonzero(gsf["layer"] == layer)
+    if nodes.size == 0:
+        raise Exception(f"no nodes in layer {layer} of {gsf_fname}")
+    return {
+        "x": gsf["x"][nodes],
+        "y": gsf["y"][nodes],
+        "area": gsf["area"][nodes],
+        "nnodes": nodes.size,
+        "nodes": nodes,
+    }
 
 
 def get_2d_pp_info_structured_grid(
@@ -459,6 +863,7 @@ def interpolate_with_sva_pilotpoints_2d(
     zone_array=1,
     verbose=True,
     layer=None,
+    node_layers=None,
 ) -> dict:
     """Perform 2-D pilot point interpolation using
     spatially varying geostatistical hyper-parameters.
@@ -496,6 +901,9 @@ def interpolate_with_sva_pilotpoints_2d(
         the (one-based) layer number to use if gridinfo_fname points
         to 3-D grid info. Default is None, which results in
         layer 1 being used
+    node_layers: array_like
+        for a MODFLOW-6 DISU binary grid file, the one-based layer of each
+        node.  Default is None
 
     Returns
     -------
@@ -524,7 +932,7 @@ def interpolate_with_sva_pilotpoints_2d(
 
     nrow, ncol = None, None
     x, y, area = None, None, None
-    grid_info = get_2d_grid_info_from_file(gridinfo_fname, layer)
+    grid_info = get_2d_grid_info_from_file(gridinfo_fname, layer, node_layers)
     nrow = grid_info.get("nrow", None)
     ncol = grid_info.get("ncol", None)
     x = grid_info["x"]
@@ -773,6 +1181,7 @@ def generate_2d_grid_realizations(
     variobearing=0.0,
     random_seed=12345,
     layer=None,
+    node_layers=None,
 ) -> np.NDArray[float]:
     """Draw 2-D realizations using sequential gaussian
     simulations and optionally using spatially varying
@@ -805,6 +1214,9 @@ def generate_2d_grid_realizations(
     layer : int or None
         the (one-based) layer to use of gridinfo_fname contains 3-D info.  Default
         is None, which results in layer 1 being used
+    node_layers : array_like or None
+        for a MODFLOW-6 DISU binary grid file, the one-based layer of each
+        node.  Default is None
 
     Returns
     -------
@@ -814,7 +1226,7 @@ def generate_2d_grid_realizations(
     """
     nrow, ncol = None, None
     x, y, area = None, None, None
-    grid_info = get_2d_grid_info_from_file(gridinfo_fname, layer)
+    grid_info = get_2d_grid_info_from_file(gridinfo_fname, layer, node_layers)
     nrow = grid_info.get("nrow", None)
     ncol = grid_info.get("ncol", None)
     x = grid_info["x"]

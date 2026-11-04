@@ -214,6 +214,29 @@ def prototype(lib) -> None:
     )
     lib.install_mf6_disu_layers.restype = c_int
 
+    # install_mfusg_grid(
+    #   gridname,ncells,nja,nvert,njavert,layer,ia,ja,top,bot,
+    #   vertx,verty,iavert,javert,cellx,celly)
+    lib.install_mfusg_grid.argtypes = (
+        POINTER(gridname_t),  # gridname, in
+        POINTER(c_int),  # ncells, in
+        POINTER(c_int),  # nja, in
+        POINTER(c_int),  # nvert, in
+        POINTER(c_int),  # njavert, in
+        ndpointer(c_int, ndim=1, flags="F"),  # layer(ncells), in
+        ndpointer(c_int, ndim=1, flags="F"),  # ia(ncells+1), in
+        ndpointer(c_int, ndim=1, flags="F"),  # ja(nja), in
+        ndpointer(c_double, ndim=1, flags="F"),  # top(ncells), in
+        ndpointer(c_double, ndim=1, flags="F"),  # bot(ncells), in
+        ndpointer(c_double, ndim=1, flags="F"),  # vertx(nvert), in
+        ndpointer(c_double, ndim=1, flags="F"),  # verty(nvert), in
+        ndpointer(c_int, ndim=1, flags="F"),  # iavert(ncells+1), in
+        ndpointer(c_int, ndim=1, flags="F"),  # javert(njavert), in
+        ndpointer(c_double, ndim=1, flags="F"),  # cellx(ncells), in
+        ndpointer(c_double, ndim=1, flags="F"),  # celly(ncells), in
+    )
+    lib.install_mfusg_grid.restype = c_int
+
     # calc_mf6_interp_factors(
     #   gridname,npts,ecoord,ncoord,layer,factorfile,
     #   factorfiletype,blnfile,interp_success)
@@ -248,6 +271,26 @@ def prototype(lib) -> None:
         ndpointer(c_double, ndim=2, flags=("F", "W")),  # simstate(ntime,npts), out
     )
     lib.interp_from_mf6_depvar_file.restype = c_int
+
+    # interp_from_mfusg_depvar_file(
+    #   depvarfile,factorfile,factorfiletype,ntime,vartype,iprec,interpthresh,
+    #   reapportion,nointerpval,npts,nproctime,simtime,simstate)
+    lib.interp_from_mfusg_depvar_file.argtypes = (
+        POINTER(filename_t),  # depvarfile, in
+        POINTER(filename_t),  # factorfile, in
+        POINTER(c_int),  # factorfiletype, in
+        POINTER(c_int),  # ntime, in
+        POINTER(vartype_t),  # vartype(17), in
+        POINTER(c_int),  # iprec, in
+        POINTER(c_double),  # interpthresh, in
+        POINTER(c_int),  # reapportion, in
+        POINTER(c_double),  # nointerpval, in
+        POINTER(c_int),  # npts, in
+        POINTER(c_int),  # nproctime, out
+        ndpointer(c_double, ndim=1, flags=("F", "W")),  # simtime(ntime), out
+        ndpointer(c_double, ndim=2, flags=("F", "W")),  # simstate(ntime,npts), out
+    )
+    lib.interp_from_mfusg_depvar_file.restype = c_int
 
     # extract_flows_from_cbc_file(
     #   cbcfile,flowtype,isim,iprec,ncell,izone,nzone,numzone,zonenumber,

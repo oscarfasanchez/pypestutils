@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_cell_centres_mf6` returns DISU node centres
 - `mod2obs_mf6` takes `node_layers` for DISU grids (model type 33), so each
   observation is interpolated from the nodes of its layer
+- MODFLOW-USG unstructured grids: `install_mfusg_grid` installs a grid from the
+  DISU and GSF arrays (layers from NODLAY), `interp_from_mfusg_depvar_file` reads
+  single- or double-precision unstructured binary files, and the helpers
+  `read_mfusg_disu`, `read_mfusg_gsf`, `get_grid_info_from_mfusg_files` and
+  `mod2obs_mfusg` mirror the MODFLOW 6 ones
+- `get_2d_grid_info_from_mf6_grb`, `generate_2d_grid_realizations` and
+  `interpolate_with_sva_pilotpoints_2d` take `node_layers` to work on one layer of a
+  DISU grid; `get_2d_grid_info_from_file` also reads one layer of a GSF file, and
+  keeps only the rows of `layer` when a table has a layer column
 ### Changed
 - `calc_mf6_interp_factors` tries rings of three cell centres first, then four, up to
   seven; the factors are unchanged, and DISV grids of Voronoi cells run about 30 times faster

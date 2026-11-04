@@ -1936,6 +1936,185 @@ end function install_mf6_disu_layers
 
 
 
+integer (kind=c_int) function install_mfusg_grid(gridname,ncells,nja,nvert,njavert,    &
+                 layer,ia,ja,top,bot,vertx,verty,iavert,javert,cellx,celly)           &
+                 bind(c,name="install_mfusg_grid")
+
+! -- Installs a MODFLOW-USG unstructured grid from arrays: node layers (from NODLAY),
+!    connections (IAC and JA of the DISU file), node tops and bottoms, and the vertices
+!    and centres of each node (from the GSF file). It is stored as a DISU grid whose
+!    layers are known, so calc_mf6_interp_factors() and get_cell_centres_mf6() treat it
+!    as they treat a MODFLOW 6 DISU grid after install_mf6_disu_layers().
+
+       use iso_c_binding, only: c_int,c_char,c_double
+       use dimvar
+       use deftypes
+       use utilities
+       use high_level_utilities
+       implicit none
+
+       character (kind=c_char,len=1), intent(in)  :: gridname(LENGRIDNAME)   ! Name of installed grid
+       integer(kind=c_int), intent(in)            :: ncells                  ! Number of nodes
+       integer(kind=c_int), intent(in)            :: nja                     ! Number of connections, each node's own included
+       integer(kind=c_int), intent(in)            :: nvert                   ! Number of vertices
+       integer(kind=c_int), intent(in)            :: njavert                 ! Number of node vertex references
+       integer(kind=c_int), intent(in)            :: layer(ncells)           ! Layer of each node (1-based)
+       integer(kind=c_int), intent(in)            :: ia(ncells+1)            ! Start of each node's connections in JA
+       integer(kind=c_int), intent(in)            :: ja(nja)                 ! Connected nodes; each node itself first
+       real(kind=c_double), intent(in)            :: top(ncells)             ! Node tops
+       real(kind=c_double), intent(in)            :: bot(ncells)             ! Node bottoms
+       real(kind=c_double), intent(in)            :: vertx(nvert)            ! Vertex eastings
+       real(kind=c_double), intent(in)            :: verty(nvert)            ! Vertex northings
+       integer(kind=c_int), intent(in)            :: iavert(ncells+1)        ! Start of each node's vertices in JAVERT
+       integer(kind=c_int), intent(in)            :: javert(njavert)         ! Vertices of each node, in order around it
+       real(kind=c_double), intent(in)            :: cellx(ncells)           ! Node centre eastings
+       real(kind=c_double), intent(in)            :: celly(ncells)           ! Node centre northings
+
+       integer                        :: igrid,jgrid,ierr,itemp
+       character (len=10)             :: atemp10
+       character (len=LENGRIDNAME)    :: aname
+
+! -- Initialisation
+
+       function_name='install_mfusg_grid()'
+       install_mfusg_grid=0
+       igrid=0
+
+       call utl_string2char(LENGRIDNAME,gridname,aname)
+       aname=adjustl(aname)
+       call utl_casetrans(aname,'lo')
+       if(aname.eq.' ')then
+         write(amessage,50) 'GRIDNAME',trim(function_name)
+50       format('The ',a,' argument of function ',a,' is supplied as blank.')
+         go to 9890
+       end if
+
+! -- The arrays are checked.
+
+       if((ncells.le.0).or.(nja.lt.ncells).or.(nvert.lt.3).or.(njavert.lt.3*ncells))then
+         write(amessage,60) trim(function_name)
+60       format('The NCELLS, NJA, NVERT and NJAVERT arguments of function ',a,   &
+         ' are not consistent with each other.')
+         go to 9890
+       end if
+       if(any(layer.le.0))then
+         write(amessage,70)
+70       format('At least one element of the LAYER array argument is zero or less.')
+         go to 9890
+       end if
+       if((ia(1).ne.1).or.(ia(ncells+1).ne.nja+1).or.                     &
+          (any(ia(2:ncells+1)-ia(1:ncells).lt.1)))then
+         write(amessage,80)
+80       format('The IA array must begin at 1, end at NJA+1, and give every node at ', &
+         'least one entry in JA (the node itself).')
+         go to 9890
+       end if
+       if((any(ja.lt.1)).or.(any(ja.gt.ncells)))then
+         write(amessage,90)
+90       format('At least one element of the JA array is not a node number.')
+         go to 9890
+       end if
+       if((iavert(1).ne.1).or.(iavert(ncells+1).ne.njavert+1).or.          &
+          (any(iavert(2:ncells+1)-iavert(1:ncells).lt.3)))then
+         write(amessage,100)
+100      format('The IAVERT array must begin at 1, end at NJAVERT+1, and give every ', &
+         'node at least three vertices.')
+         go to 9890
+       end if
+       if((any(javert.lt.1)).or.(any(javert.gt.nvert)))then
+         write(amessage,110)
+110      format('At least one element of the JAVERT array is not a vertex number.')
+         go to 9890
+       end if
+
+! -- An empty grid element is found.
+
+       if(nummf6modgrid.ge.MAXMF6MODGRID)then
+         call utl_num2char(MAXMF6MODGRID,atemp10)
+         write(amessage,120) trim(atemp10)
+120      format('A maximum of ',a,' MODFLOW 6 model grid specifications ',  &
+         'can be installed. You must uninstall at least one MODFLOW 6 model ', &
+         'grid specification before you can install a new one.')
+         go to 9890
+       end if
+       do jgrid=1,MAXMF6MODGRID
+         if(mf6modgrid(jgrid)%distype.ne.0)then
+           if(aname.eq.mf6modgrid(jgrid)%name)then
+             write(amessage,130) trim(aname)
+130          format('The name "',a,'" belongs to an already-installed MODFLOW 6 grid.')
+             go to 9890
+           end if
+         end if
+       end do
+       do igrid=1,MAXMF6MODGRID
+         if(mf6modgrid(igrid)%distype.eq.0) go to 140
+       end do
+       igrid=0
+       write(amessage,135) trim(function_name)
+135    format('Programming error in function ',a,': contact programmer.')
+       go to 9890
+140    continue
+
+! -- The grid is stored.
+
+       mf6modgrid(igrid)%name=aname
+       mf6modgrid(igrid)%distype=3
+       nummf6modgrid=nummf6modgrid+1
+       mf6modgrid(igrid)%ncells=ncells
+       mf6modgrid(igrid)%nja=nja
+       mf6modgrid(igrid)%nvert=nvert
+       mf6modgrid(igrid)%njavert=njavert
+       mf6modgrid(igrid)%nlay=maxval(layer)
+       mf6modgrid(igrid)%ncpl=ncells
+       mf6modgrid(igrid)%xorigin=0.0d0
+       mf6modgrid(igrid)%yorigin=0.0d0
+       mf6modgrid(igrid)%angrot=0.0d0
+       mf6modgrid(igrid)%crs=' '
+       allocate(mf6modgrid(igrid)%topu(ncells),mf6modgrid(igrid)%botu(ncells),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(mf6modgrid(igrid)%ia(ncells+1),mf6modgrid(igrid)%ja(nja),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(mf6modgrid(igrid)%idomainu(ncells),mf6modgrid(igrid)%icelltypeu(ncells),   &
+       mf6modgrid(igrid)%nodelay(ncells),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(mf6modgrid(igrid)%vertices(2,nvert),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(mf6modgrid(igrid)%cellx(ncells),mf6modgrid(igrid)%celly(ncells),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(mf6modgrid(igrid)%iavert(ncells+1),mf6modgrid(igrid)%javert(njavert),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       mf6modgrid(igrid)%topu=top             ! an array
+       mf6modgrid(igrid)%botu=bot             ! an array
+       mf6modgrid(igrid)%ia=ia                ! an array
+       mf6modgrid(igrid)%ja=ja                ! an array
+       mf6modgrid(igrid)%idomainu=1           ! an array
+       mf6modgrid(igrid)%icelltypeu=0         ! an array
+       mf6modgrid(igrid)%nodelay=layer        ! an array
+       mf6modgrid(igrid)%vertices(1,:)=vertx  ! an array
+       mf6modgrid(igrid)%vertices(2,:)=verty  ! an array
+       mf6modgrid(igrid)%cellx=cellx          ! an array
+       mf6modgrid(igrid)%celly=celly          ! an array
+       mf6modgrid(igrid)%iavert=iavert        ! an array
+       mf6modgrid(igrid)%javert=javert        ! an array
+       go to 9900
+
+9200   write(amessage,9210)
+9210   format('Cannot allocate memory required to store grid specifications.')
+       go to 9890
+
+9890   continue
+       install_mfusg_grid=1
+       if(igrid.ne.0)then
+         itemp=uth_mf6modgrid_deallocate(igrid)
+       end if
+
+9900   continue
+       return
+
+end function install_mfusg_grid
+
+
+
 integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                               npts,ecoord,ncoord,layer,                &
                               factorfile, factorfiletype,              &
@@ -3146,6 +3325,339 @@ integer (kind=c_int) function interp_from_mf6_depvar_file(             &
        if(allocated(darray))deallocate(darray,stat=ierr)
 
 end function interp_from_mf6_depvar_file
+
+
+
+integer (kind=c_int) function interp_from_mfusg_depvar_file(           &
+                 depvarfile,factorfile,factorfiletype,                 &
+                 ntime,vartype,iprec,interpthresh,reapportion,         &
+                 nointerpval,npts,nproctime,simtime,simstate)          &
+                 bind(c,name="interp_from_mfusg_depvar_file")
+
+! -- This function interpolates to a set of points from an unstructured-grid dependent
+!    variable file written by MODFLOW-USG, using interpolation factors calculated by
+!    calc_mf6_interp_factors() for a grid installed by install_mfusg_grid(). Each array
+!    in the file covers the nodes NSTRT to NEND of one layer.
+
+       use iso_c_binding, only: c_int,c_char,c_double
+       use dimvar
+       use utilities
+       implicit none
+
+       character(kind=c_char,len=1), intent(in)   :: depvarfile(LENFILENAME)   ! Dependent variable file written by MODFLOW-USG
+       character(kind=c_char,len=1), intent(in)   :: factorfile(LENFILENAME)   ! File containing spatial interpolation factors
+       integer(kind=c_int), intent(in)            :: factorfiletype       ! 0 for binary; 1 for ascii
+       integer(kind=c_int), intent(in)            :: ntime                ! First dimension of simtime and simstate arrays
+       character (kind=c_char,len=1), intent(in)  :: vartype(17)          ! Only read arrays of this type
+       integer(kind=c_int), intent(in)            :: iprec                ! 1 for single precision; 2 for double
+       real(kind=c_double), intent(in)            :: interpthresh         ! Abs threshold for dry or inactive
+       integer(kind=c_int), intent(in)            :: reapportion          ! 0 for no; 1 for yes
+       real(kind=c_double), intent(in)            :: nointerpval          ! No-interpolation-possible value
+       integer(kind=c_int), intent(in)            :: npts                 ! Second dimension of simstate
+       integer(kind=c_int), intent(out)           :: nproctime            ! Number of processed simulation times
+       real(kind=c_double), intent(out)           :: simtime(ntime)       ! Simulation times
+       real(kind=c_double), intent(out)           :: simstate(ntime,npts) ! Interpolated system states
+
+       integer                        :: ierr,itemp
+       integer                        :: dvunit,facunit
+       integer                        :: mpts,distype,ndim1,ndim2,ndim3
+       integer                        :: ipts,icell,itime,inode
+       integer                        :: nnode,nstrt,nend,mlay
+       integer                        :: kstpold,kperold,kstp,kper
+       real                           :: rpertim,rtotim
+       double precision               :: dtemp,dpertim,dtotim,sum,den,dtotimold
+       character (len=16)             :: atext,text,textold
+       character (len=256)            :: dvfile,facfile
+
+       integer, allocatable           :: ncell(:),ifac(:,:)
+       real, allocatable              :: rarray(:)
+       double precision, allocatable  :: dfac(:,:)
+       double precision, allocatable  :: darray(:)
+
+! -- Initialisation
+
+       interp_from_mfusg_depvar_file=0
+       function_name='interp_from_mfusg_depvar_file()'
+       dvunit=0
+       facunit=0
+       simtime=nointerpval     ! an array
+       simstate=nointerpval    ! an array
+       kstpold=-99999999
+       kperold=-99999999
+       textold=' '
+       dtotimold=-1.0d30
+       nproctime=0
+
+! -- Character arrays are translated to character variables.
+
+       call utl_string2char(LENFILENAME,depvarfile,dvfile)
+       dvfile=adjustl(dvfile)
+       call utl_string2char(LENFILENAME,factorfile,facfile)
+       facfile=adjustl(facfile)
+       call utl_string2char(17,vartype,atext)
+       atext=adjustl(atext)
+       call utl_casetrans(atext,'lo')
+
+! -- Check input arguments.
+
+       if(ntime.le.0)then
+         write(amessage,110) 'NTIME', trim(function_name)
+110      format('The ', a,' argument of function ',a,' must be positive.')
+         go to 9890
+       end if
+       if(npts.le.0)then
+         write(amessage,110) 'NPTS', trim(function_name)
+         go to 9890
+       end if
+       if(dvfile.eq.' ')then
+         write(amessage,120) 'DEPVARFILE',trim(function_name)
+120      format('The ',a,' argument of function ',a,' must not be blank.')
+         go to 9890
+       end if
+       if(facfile.eq.' ')then
+         write(amessage,120) 'FACTORFILE',trim(function_name)
+         go to 9890
+       end if
+       if(atext.eq.' ')then
+         write(amessage,120) 'VARTYPE',trim(function_name)
+         go to 9890
+       end if
+       if((factorfiletype.ne.0).and.(factorfiletype.ne.1))then
+         write(amessage, 130) trim(function_name)
+130      format('The FACTORFILETYPE argument of function ',a,' must be supplied as 0 or 1.')
+         go to 9890
+       end if
+       if((iprec.ne.1).and.(iprec.ne.2))then
+         write(amessage, 135) trim(function_name)
+135      format('The IPREC argument of function ',a,' must be supplied as 1 or 2.')
+         go to 9890
+       end if
+       if(interpthresh.le.0.0d0)then
+         write(amessage,140) trim(function_name)
+140      format('The INTERPTHRESH argument of function ',a,' must be positive.')
+         go to 9890
+       end if
+
+! -- Open the dependent variable file.
+
+       call utl_addquote(dvfile,afile1)
+       dvunit=utl_nextunit()
+       open(unit=dvunit,file=dvfile,status='old',form='unformatted',access='stream',iostat=ierr)
+       if(ierr.ne.0) then
+         write(amessage,160) trim(afile1)
+160      format('Cannot open binary MODFLOW-USG output file ',a,'.')
+         go to 9890
+       end if
+
+! -- Open the factor file.
+
+       call utl_addquote(facfile,afile2)
+       facunit=utl_nextunit()
+       if(factorfiletype.eq.0)then
+         open(unit=facunit,file=facfile,status='old',form='unformatted',access='stream',iostat=ierr)
+         if(ierr.ne.0) then
+           write(amessage,180) trim(afile2)
+180        format('Cannot open binary interpolation factor file ',a,'.')
+           go to 9890
+         end if
+       else
+         open(unit=facunit,file=facfile,status='old',iostat=ierr)
+         if(ierr.ne.0) then
+           write(amessage,185) trim(afile2)
+185        format('Cannot open ASCII interpolation factor file ',a,'.')
+           go to 9890
+         end if
+       end if
+
+! -- Read the first line of the factor file to ascertain the number of points and nodes.
+
+       if(factorfiletype.eq.0)then
+         read(facunit,err=9000,end=9000) mpts,distype,ndim1,ndim2,ndim3
+       else
+         read(facunit,*,err=9000,end=9000) mpts,distype,ndim1,ndim2,ndim3
+       end if
+       if(mpts.ne.npts)then
+         write(amessage,190) trim(afile2)
+190      format('The value for NPTS recorded in the header to file ',a,' does not ', &
+         'agree with the value of the user-supplied NPTS function argument.')
+         go to 9890
+       end if
+       if(distype.ne.3)then
+         write(amessage,195) trim(afile2)
+195      format('Interpolation factors in file ',a,' were not calculated for an ', &
+         'unstructured grid.')
+         go to 9890
+       end if
+       nnode=ndim1
+
+! -- Arrays are allocated
+
+       allocate(darray(nnode),rarray(nnode),stat=ierr)
+       if(ierr.ne.0) go to 9200
+       allocate(ncell(npts),ifac(MAXINTERPVERT,npts),dfac(MAXINTERPVERT,npts),stat=ierr)
+       if(ierr.ne.0) go to 9200
+
+! -- The first NPTS lines of the factor file are read.
+
+       if(factorfiletype.eq.0)then
+         do ipts=1,npts
+           read(facunit,err=9000,end=9000) dtemp,dtemp,itemp
+         end do
+       else
+         do ipts=1,npts
+           read(facunit,*,err=9000,end=9000) dtemp,dtemp,itemp
+         end do
+       end if
+
+! -- Interpolation factors are read.
+
+       if(factorfiletype.eq.0)then
+         do ipts=1,npts
+           read(facunit,err=9000,end=9000) ncell(ipts),                &
+               (ifac(icell,ipts),dfac(icell,ipts),icell=1,ncell(ipts))
+         end do
+       else
+         do ipts=1,npts
+           read(facunit,*,err=9000,end=9000) ncell(ipts),              &
+               (ifac(icell,ipts),dfac(icell,ipts),icell=1,ncell(ipts))
+         end do
+       end if
+       close(unit=facunit)
+       facunit=0
+
+! -- The dependent variable file is read. Each array holds nodes NSTRT to NEND of a layer.
+
+       darray=interpthresh+2.0d0*spacing(interpthresh)
+       itime=0
+       do
+         if(iprec.eq.1)then
+           read(dvunit,err=9100,end=500) kstp,kper,rpertim,rtotim,text,nstrt,nend,mlay
+           dpertim=dble(rpertim)
+           dtotim=dble(rtotim)
+         else
+           read(dvunit,err=9100,end=500) kstp,kper,dpertim,dtotim,text,nstrt,nend,mlay
+         end if
+         if((nstrt.lt.1).or.(nend.gt.nnode).or.(nstrt.gt.nend)) go to 9300
+         if((kstp.ne.kstpold).or.(kperold.ne.kper))then
+           textold=adjustl(textold)
+           call utl_casetrans(textold,'lo')
+           if(index(textold,trim(atext)).ne.0) then
+             itime=itime+1
+             if(itime.gt.ntime) go to 500
+             simtime(itime)=dtotimold
+             do ipts=1,npts
+               if(ncell(ipts).gt.0)then
+                 sum=0.0d0
+                 den=0.0d0
+                 do icell=1,ncell(ipts)
+                   inode=ifac(icell,ipts)
+                   dtemp=darray(inode)
+                   if(abs(dtemp).ge.interpthresh)then
+                     if(reapportion.eq.0) go to 210
+                   end if
+                   sum=sum+dtemp*dfac(icell,ipts)
+                   den=den+dfac(icell,ipts)
+                 end do
+                 if(den.ne.0.0d0) simstate(itime,ipts)=sum/den
+210              continue
+               end if
+             end do
+           end if
+           kstpold=kstp
+           kperold=kper
+           dtotimold=dtotim
+           textold=text
+           darray=interpthresh+2.0d0*spacing(interpthresh)
+         end if
+         if(iprec.eq.1)then
+           read(dvunit,err=9100,end=9150) (rarray(inode),inode=nstrt,nend)
+           darray(nstrt:nend)=dble(rarray(nstrt:nend))
+         else
+           read(dvunit,err=9100,end=9150) (darray(inode),inode=nstrt,nend)
+         end if
+       end do
+
+500    continue
+       textold=adjustl(textold)
+       call utl_casetrans(textold,'lo')
+       if(index(textold,trim(atext)).ne.0) then
+         if(itime+1.le.ntime) then
+           itime=itime+1
+           simtime(itime)=dtotimold
+           do ipts=1,npts
+             if(ncell(ipts).gt.0)then
+               sum=0.0d0
+               den=0.0d0
+               do icell=1,ncell(ipts)
+                 inode=ifac(icell,ipts)
+                 dtemp=darray(inode)
+                 if(abs(dtemp).ge.interpthresh) then
+                   if(reapportion.eq.0) go to 520
+                 end if
+                 sum=sum+dtemp*dfac(icell,ipts)
+                 den=den+dfac(icell,ipts)
+               end do
+               if(den.ne.0.0d0) simstate(itime,ipts)=sum/den
+520            continue
+             end if
+           end do
+         end if
+       end if
+
+       if(itime.eq.0)then
+         write(amessage,510) trim(atext),trim(afile1)
+510      format('No dependent variable arrays characterized by text "',a,   &
+         '" were found in file ',a,'.')
+         go to 9890
+       end if
+       nproctime=itime
+       go to 9900
+
+9000   continue
+       if(factorfiletype.eq.0)then
+         write(amessage,9010) trim(afile2)
+9010     format('Error encountered when reading binary interpolation factor ', &
+         'file ',a,'.')
+       else
+         write(amessage,9011) trim(afile2)
+9011     format('Error encountered when reading ASCII interpolation factor ', &
+         'file ',a,'.')
+       end if
+       go to 9890
+
+9100   write(amessage,9110) trim(afile1)
+9110   format('Error encountered when reading binary MODFLOW-USG dependent variable ', &
+       'file ',a,'. Check its precision.')
+       go to 9890
+
+9150   write(amessage,9160) trim(afile1)
+9160   format('Premature end encountered to binary MODFLOW-USG dependent variable file ',a,'.')
+       go to 9890
+
+9200   write(amessage,9210) trim(function_name)
+9210   format('Memory allocation error in function ',a,'.')
+       go to 9890
+
+9300   write(amessage,9310) trim(afile1),trim(afile2)
+9310   format('Node numbers listed in array headers in file ',a,' are not ', &
+       'in accordance with the grid for which interpolation factors ', &
+       'are recorded in file ',a,'. Is the file unstructured, and is its precision right?')
+       go to 9890
+
+9890   continue
+       interp_from_mfusg_depvar_file=1
+
+9900   continue
+       if(dvunit.ne.0) close(unit=dvunit,iostat=ierr)
+       if(facunit.ne.0) close(unit=facunit,iostat=ierr)
+
+       if(allocated(ncell))deallocate(ncell,stat=ierr)
+       if(allocated(ifac))deallocate(ifac,stat=ierr)
+       if(allocated(dfac))deallocate(dfac,stat=ierr)
+       if(allocated(darray))deallocate(darray,stat=ierr)
+       if(allocated(rarray))deallocate(rarray,stat=ierr)
+
+end function interp_from_mfusg_depvar_file
 
 
 
