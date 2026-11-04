@@ -1885,3 +1885,130 @@ class PestUtilsLib:
             raise PestUtilsLibError(self.retrieve_error_message())
         self.logger.info("generated 3D stochastic fields for %d realisations", nreal)
         return randfield.copy("A")
+
+    def fieldgen3d_sva2(
+        self,
+        # nsrc: int,  # determined from ecs.shape[0]
+        ecs: npt.ArrayLike,
+        ncs: npt.ArrayLike,
+        zcs: npt.ArrayLike,
+        vols: float | npt.ArrayLike,
+        iid: npt.ArrayLike,
+        # ntarg: int,  # determined from ect.shape[0]
+        ect: npt.ArrayLike,
+        nct: npt.ArrayLike,
+        zct: npt.ArrayLike,
+        active: int | npt.ArrayLike,
+        mean: float | npt.ArrayLike,
+        var: float | npt.ArrayLike,
+        ahmax: float | npt.ArrayLike,
+        ahmin: float | npt.ArrayLike,
+        avert: float | npt.ArrayLike,
+        bearing: float | npt.ArrayLike,
+        dip: float | npt.ArrayLike,
+        rake: float | npt.ArrayLike,
+        transtype: int | str | enum.TransType,
+        avetype: int | str | enum.VarioType,
+        power: float,
+    ) -> npt.NDArray[np.float64]:
+        """Compute one 3D stochastic field from user-supplied normal variates.
+
+        The field is the spatial convolution of :meth:`fieldgen3d_sva`, but
+        the independent normal variates are given at source points instead of
+        being drawn, so that they can be parameters adjusted by PEST or PEST++
+        (as for the PEST utility FIELDGEN3D_SVA2). With source points at the
+        target points and ``vols`` equal to area times height, the result is
+        that of :meth:`fieldgen3d_sva` for the same variates. Fewer source
+        points than target points give fewer parameters and a faster run.
+
+        Parameters
+        ----------
+        ecs, ncs, zcs : array_like
+            Source point coordinates, each 1D array with shape (nsrc,).
+        vols : float or array_like
+            Volumes associated with source points, used as weights.
+        iid : array_like
+            Independent normal variates at source points, shape (nsrc,).
+        ect, nct, zct : array_like
+            Target point coordinates, each 1D array with shape (ntarg,).
+        active : int or array_like
+            Inactive target points are equal to zero; their value is 1.1e31.
+        mean : float or array_like
+            Mean value of stochastic field.
+        var : float or array_like
+            Variance of stochastic field.
+        ahmax, ahmin, avert : float or array_like
+            Averaging function correlation lengths.
+        bearing : float or array_like
+            Bearing of ahmax direction.
+        dip : float or array_like
+            Dip of ahmax direction.
+        rake : float or array_like
+            Rotation of ahmin direction.
+        transtype : int, str or enum.TransType
+            Stochastic field pertains to natural(0) or log(1) properties.
+        avetype : int, str or enum.VarioType
+            Averaging function type, where 1:spher, 2:exp, 3:gauss, 4:pow.
+        power : float
+            Power used if avetype is 4 (pow).
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Field at the target points, with shape (ntarg,).
+        """
+        src = ManyArrays(
+            {"ecs": ecs, "ncs": ncs, "zcs": zcs, "iid": iid}, {"vols": vols}
+        )
+        targ = ManyArrays(
+            {"ect": ect, "nct": nct, "zct": zct},
+            {
+                "mean": mean,
+                "var": var,
+                "ahmax": ahmax,
+                "ahmin": ahmin,
+                "avert": avert,
+                "bearing": bearing,
+                "dip": dip,
+                "rake": rake,
+            },
+            {"active": active},
+        )
+        if isinstance(transtype, str):
+            transtype = enum.TransType.get_value(transtype)
+        if isinstance(avetype, str):
+            avetype = enum.VarioType.get_value(avetype)
+        targval = np.zeros(len(targ), np.float64, order="F")
+        res = self.pestutils.fieldgen3d_sva2(
+            byref(c_int(len(src))),
+            src.ecs,
+            src.ncs,
+            src.zcs,
+            src.vols,
+            src.iid,
+            byref(c_int(len(targ))),
+            targ.ect,
+            targ.nct,
+            targ.zct,
+            targ.active,
+            targ.mean,
+            targ.var,
+            targ.ahmax,
+            targ.ahmin,
+            targ.avert,
+            targ.bearing,
+            targ.dip,
+            targ.rake,
+            byref(c_int(transtype)),
+            byref(c_int(avetype)),
+            byref(c_double(power)),
+            targval,
+        )
+        if res != 0:
+            raise PestUtilsLibError(self.retrieve_error_message())
+        self.logger.info(
+            "computed a 3D stochastic field at %d points from %d variates",
+            len(targ),
+            len(src),
+        )
+        return targval

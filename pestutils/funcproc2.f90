@@ -3884,6 +3884,285 @@ end function fieldgen3d_sva
 
 
 
+integer (kind=c_int) function fieldgen3d_sva2(               &
+                              nsrc,                          &
+                              ecs,ncs,zcs,vols,iid,          &
+                              ntarg,                         &
+                              ect,nct,zct,active,            &
+                              mean,var,                      &
+                              ahmax,ahmin,avert,             &
+                              bearing,dip,rake,              &
+                              transtype,avetype,power,       &
+                              targval)                       &
+                 bind(C,name="fieldgen3d_sva2")
+
+! -- This function computes one 3D stochastic field from user-supplied independent normal
+!    variates at source points, by the same spatial convolution as fieldgen3d_sva(). The
+!    variates may be parameters adjusted by PEST or PEST++ (as for program FIELDGEN3D_SVA2).
+!    Source points need not coincide with target points; with sources at the target points,
+!    and source volumes equal to area times height, the result is that of fieldgen3d_sva()
+!    for the same variates.
+
+       use iso_c_binding, only: c_int,c_double
+       use dimvar
+       use utilities
+       implicit none
+
+       integer(kind=c_int), intent(in)   :: nsrc                   ! Number of source points
+       real(kind=c_double), intent(in)   :: ecs(nsrc),ncs(nsrc),zcs(nsrc) ! x,y,z coordinates of source points
+       real(kind=c_double), intent(in)   :: vols(nsrc)             ! Volumes associated with source points
+       real(kind=c_double), intent(in)   :: iid(nsrc)              ! Independent normal variates at source points
+       integer(kind=c_int), intent(in)   :: ntarg                  ! Number of target points
+       real(kind=c_double), intent(in)   :: ect(ntarg),nct(ntarg),zct(ntarg) ! x,y,z coordinates of target points
+       integer(kind=c_int), intent(in)   :: active(ntarg)          ! 0=inactive target point
+       real(kind=c_double), intent(in)   :: mean(ntarg)            ! Mean value of stochastic field
+       real(kind=c_double), intent(in)   :: var(ntarg)             ! Variance of stochastic field
+       real(kind=c_double), intent(in)   :: ahmax(ntarg),ahmin(ntarg),avert(ntarg) ! Ave func. correlation lengths
+       real(kind=c_double), intent(in)   :: bearing(ntarg)         ! Bearing of ahmax direction
+       real(kind=c_double), intent(in)   :: dip(ntarg)             ! Dip of ahmax direction
+       real(kind=c_double), intent(in)   :: rake(ntarg)            ! Rotation of ahmin direction
+       integer(kind=c_int), intent(in)   :: transtype              ! Stochastic field pertains to natural(0) or log(1) props
+       integer(kind=c_int), intent(in)   :: avetype                ! 1:spher,2:exp,3:gauss,4:pow
+       real(kind=c_double), intent(in)   :: power                  ! Power used in power AVETYPE
+       real(kind=c_double), intent(out)  :: targval(ntarg)         ! Field at target points (1.1E31 if inactive)
+
+       integer                 :: jtarg,ksrc
+       double precision        :: xi,yi,zi
+       double precision        :: aavert
+       double precision        :: vvar,along,amid,cosang1,sinang1,ang1
+       double precision        :: cosang2,sinang2,cosang3,sinang3
+       double precision        :: den_along,den_along2,den_amid,den_amid2,den
+       double precision        :: den_avert,den_avert2
+       double precision        :: xd,yd,zd,xdd,ydd,zdd
+       double precision        :: xdiff,ydiff,zdiff,dlong,dmid,dvert
+       double precision        :: dtemp,dtemp1,dtemp2,dtemp3,dsum
+       double precision        :: dlim,pidiv180
+       character(len=25)       :: varname
+       character(len=20)       :: atemp
+
+! -- Initialisation
+
+       fieldgen3d_sva2=0
+       function_name='fieldgen3d_sva2()'
+       pidiv180=3.1415926535898d0/180.0d0
+       dlim=1.0d-5
+       targval=1.1d31          ! an array
+
+! -- Check input arguments.
+
+       if((transtype.ne.0).and.(transtype.ne.1))then
+         write(amessage,100) 'TRANSTYPE',trim(function_name)
+100      format('The ',a,' argument of function ',a,' must be ',  &
+         'supplied as 0 or 1.')
+         go to 9890
+       end if
+       if((avetype.ne.1).and.(avetype.ne.2).and.(avetype.ne.3).and.(avetype.ne.4))then
+         write(amessage,105)  trim(function_name)
+105      format('The AVETYPE argument of function ',a,' must be ',  &
+         'supplied as 1, 2, 3 or 4.')
+         go to 9890
+       end if
+       if(avetype.eq.4)then
+         if(power.le.0.0d0)then
+           write(amessage,106) trim(function_name)
+106        format('If AVETYPE is set to 4, then the POWER argument of function ',a,    &
+           ' must be greater than zero.')
+           go to 9890
+         end if
+       end if
+       if(nsrc.le.0)then
+         varname='NSRC'
+         go to 9000
+       end if
+       if(ntarg.le.0)then
+         varname='NTARG'
+         go to 9000
+       end if
+       if(any(vols.le.0.0d0))then
+         write(amessage,110)
+110      format('At least one VOLS value is zero or negative.')
+         go to 9890
+       end if
+       if(all(active.eq.0))then
+         varname='ACTIVE'
+         go to 9100
+       end if
+       do jtarg=1,ntarg
+         if(active(jtarg).ne.0)then
+           if(var(jtarg).lt.0.0d0)then
+             write(amessage,171) 'VAR'
+171          format('At least one ',a,' value is negative for an active target point.')
+             go to 9890
+           end if
+           if(ahmax(jtarg).le.0.0d0)then
+             write(amessage,170) 'AHMAX'
+170          format('At least one ',a,' value is zero or negative for an active target point.')
+             go to 9890
+           end if
+           if(ahmin(jtarg).le.0.0d0)then
+             write(amessage,170) 'AHMIN'
+             go to 9890
+           end if
+           if(avert(jtarg).le.0.0d0)then
+             write(amessage,170) 'AVERT'
+             go to 9890
+           end if
+           if((bearing(jtarg).lt.-360.0d0).or.(bearing(jtarg).gt.360.0d0))then
+             write(amessage,180)
+180          format('At least one BEARING value is less than -360 degrees or greater than ',  &
+             '360 degrees for an active target point.')
+             go to 9890
+           end if
+           if((dip(jtarg).lt.-180.0d0).or.(dip(jtarg).gt.180.0d0))then
+             write(amessage,181)
+181          format('At least one DIP value is less than -180 degrees or greater than ',  &
+             '180 degrees for an active target point.')
+             go to 9890
+           end if
+           if((rake(jtarg).lt.-90.0d0).or.(rake(jtarg).gt.90.0d0))then
+             write(amessage,182)
+182          format('At least one RAKE value is less than -90 degrees or greater than ',  &
+             '90 degrees for an active target point.')
+             go to 9890
+           end if
+         end if
+       end do
+
+! -- Evaluate limit threshold
+
+       if(avetype.eq.2)then
+         dlim=-log(dlim)
+         dlim=dlim*dlim              ! applies to x^2
+       else if(avetype.eq.3)then
+         dlim=-log(dlim)             ! applies to x^2
+       else
+         dlim=1.0d0
+       end if
+
+! -- Do the convolution
+
+       do jtarg=1,ntarg
+         if(active(jtarg).eq.0) cycle
+         xi=ect(jtarg)
+         yi=nct(jtarg)
+         zi=zct(jtarg)
+         vvar=var(jtarg)
+         along=ahmax(jtarg)
+         amid=ahmin(jtarg)
+         aavert=avert(jtarg)
+         ang1=90.0d0-bearing(jtarg)
+         cosang1=cos(ang1*pidiv180)
+         sinang1=sin(ang1*pidiv180)
+         cosang2=cos(dip(jtarg)*pidiv180)
+         sinang2=sin(dip(jtarg)*pidiv180)
+         cosang3=cos(rake(jtarg)*pidiv180)
+         sinang3=sin(rake(jtarg)*pidiv180)
+         den_along=1.0d0/along
+         den_along2=den_along*den_along
+         den_amid=1.0d0/amid
+         den_amid2=den_amid*den_amid
+         den_avert=1.0d0/aavert
+         den_avert2=den_avert*den_avert
+         den=0.0d0
+         dsum=0.0d0
+         do ksrc=1,nsrc
+           xdiff=ecs(ksrc)-xi
+           ydiff=ncs(ksrc)-yi
+           zdiff=zcs(ksrc)-zi
+           xd=xdiff*cosang1+ydiff*sinang1
+           yd=-xdiff*sinang1+ydiff*cosang1
+           zd=zdiff
+           xdd=xd*cosang2+zd*sinang2
+           ydd=yd
+           zdd=-xd*sinang2+zd*cosang2
+           dlong=xdd
+           dmid=ydd*cosang3+zdd*sinang3
+           dvert=-ydd*sinang3+zdd*cosang3
+           if(avetype.eq.2)then
+             dtemp1=dlong*dlong*den_along2
+             if(dtemp1.gt.dlim) cycle
+             dtemp2=dmid*dmid*den_amid2
+             if(dtemp2.gt.dlim) cycle
+             dtemp3=dvert*dvert*den_avert2
+             if(dtemp3.gt.dlim) cycle
+             dtemp=dtemp1+dtemp2+dtemp3
+             if(dtemp.gt.dlim) cycle
+             dtemp=sqrt(dtemp)
+             dtemp=exp(-dtemp)
+           else if(avetype.eq.3)then
+             dtemp1=dlong*dlong*den_along2
+             if(dtemp1.gt.dlim) cycle
+             dtemp2=dmid*dmid*den_amid2
+             if(dtemp2.gt.dlim) cycle
+             dtemp3=dvert*dvert*den_avert2
+             if(dtemp3.gt.dlim) cycle
+             dtemp=dtemp1+dtemp2+dtemp3
+             if(dtemp.gt.dlim) cycle
+             dtemp=exp(-dtemp)
+           else if(avetype.eq.1)then
+             dtemp1=abs(dlong*den_along)
+             if(dtemp1.gt.1.0d0)cycle
+             dtemp2=abs(dmid*den_amid)
+             if(dtemp2.gt.1.0d0) cycle
+             dtemp3=abs(dvert*den_avert)
+             if(dtemp3.gt.1.0d0) cycle
+             dtemp=dtemp1*dtemp1+dtemp2*dtemp2+dtemp3*dtemp3
+             dtemp=sqrt(dtemp)
+             dtemp3=dtemp*dtemp*dtemp
+             dtemp=1.0d0-1.5*dtemp+0.5*dtemp3
+             if(dtemp.lt.0.0d0) cycle
+           else if(avetype.eq.4)then
+             dtemp1=abs(dlong*den_along)
+             if(dtemp1.gt.1.0d0) cycle
+             dtemp2=abs(dmid*den_amid)
+             if(dtemp2.gt.1.0d0) cycle
+             dtemp3=abs(dvert*den_avert)
+             if(dtemp3.gt.1.0d0) cycle
+             dtemp=dtemp1*dtemp1+dtemp2*dtemp2+dtemp3*dtemp3
+             dtemp=sqrt(dtemp)
+             dtemp=1.0d0-(dtemp**power)
+             if(dtemp.lt.0.0d0) cycle
+           end if
+           dtemp=dtemp*vols(ksrc)
+           dsum=dsum+dtemp*iid(ksrc)
+           den=den+dtemp*dtemp
+         end do
+         if(den.le.0.0d0)then
+           call utl_num2char(jtarg,atemp)
+           write(amessage,300) trim(atemp)
+300        format('No source point lies within the averaging function of target point ',a,  &
+           '. Use more source points or longer correlation lengths.')
+           go to 9890
+         end if
+         dtemp=dsum*sqrt(vvar/den)          ! Ensures that it has the correct variance
+         if(transtype.eq.0)then
+           targval(jtarg)=mean(jtarg)+dtemp
+         else
+           if(dtemp.gt.100.0d0) dtemp=100.0d0
+           targval(jtarg)=mean(jtarg)*(10**dtemp)
+         end if
+       end do
+       go to 9900
+
+9000   write(amessage,9010) trim(varname),trim(function_name)
+9010   format('The ',a,' argument of function ',a,' must be greater than zero.')
+       go to 9890
+
+9100   write(amessage,9110) trim(varname),trim(function_name)
+9110   format('All elements of the ',a,' array are supplied as zero in call to ',  &
+       'function ',a,'.')
+       go to 9890
+
+9890   fieldgen3d_sva2=1
+
+9900   continue
+
+       return
+
+end function fieldgen3d_sva2
+
+
+
 subroutine free_param_memory1()
        use used_by_kb2d_1
        implicit none

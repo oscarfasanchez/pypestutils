@@ -204,3 +204,57 @@ def test_fieldgen2d_sva(): ...
 
 
 def test_fieldgen3d_sva(): ...
+
+
+@pytest.mark.parametrize(
+    "case, transtype, avetype",
+    [("exp_natural", "none", "exp"), ("gauss_log", "log", "gauss")],
+)
+def test_fieldgen3d_sva2_matches_the_pest_utility(case, transtype, avetype):
+    """The same field as FIELDGEN3D_SVA2 for the same source points and variates.
+
+    36 source points on a lattice, 60 scattered target points, anisotropic and
+    rotated averaging with ahmax varying per target; the .std files were written
+    by FIELDGEN3D_SVA2.
+    """
+    import numpy as np
+    import pandas as pd
+
+    d = data_dir / "fieldgen3d_sva2"
+    src, tgt = pd.read_csv(d / "source.csv"), pd.read_csv(d / "target.csv")
+    iid = pd.read_csv(d / "iid.csv")["iid"]
+    res = PestUtilsLib().fieldgen3d_sva2(
+        src.x, src.y, src.z, src.volume, iid,
+        tgt.x, tgt.y, tgt.z, 1, tgt["mean"], tgt.variance,
+        tgt.a_hmax, tgt.a_hmin, tgt.a_vert, tgt.bearing, tgt.dip, tgt.rake,
+        transtype, avetype, 1.0,
+    )  # fmt: skip
+    np.testing.assert_allclose(res, np.loadtxt(d / f"{case}.std"), rtol=1e-6)
+
+
+def test_fieldgen3d_sva2_is_linear_in_the_variates():
+    import numpy as np
+
+    from pypestutils.pestutilslib import PestUtilsLibError
+
+    rng = np.random.default_rng(3)
+    x, y, z = rng.uniform(0, 100, 40), rng.uniform(0, 100, 40), rng.uniform(0, 20, 40)
+    iid = rng.standard_normal(40)
+    active = np.ones(40, dtype=int)
+    active[0] = 0
+    lib = PestUtilsLib()
+
+    def field(variates, mean=0.0, var=1.0, ahmax=30.0, sx=x, avetype="exp"):
+        return lib.fieldgen3d_sva2(
+            sx, y, z, 1.0, variates, x, y, z, active, mean, var,
+            ahmax, ahmax, 5.0, 0.0, 0.0, 0.0, "none", avetype, 1.0,
+        )  # fmt: skip
+
+    base = field(iid)
+    assert base[0] == 1.1e31 and np.isfinite(base[1:]).all()
+    np.testing.assert_allclose(field(iid, var=4.0)[1:], 2 * base[1:])
+    np.testing.assert_allclose(field(iid, mean=5.0)[1:], base[1:] + 5.0)
+    np.testing.assert_allclose(field(2 * iid)[1:], 2 * base[1:])
+    # a target out of reach of every source point is an error
+    with pytest.raises(PestUtilsLibError, match="No source point"):
+        field(iid, ahmax=1.0, sx=x + 500.0, avetype="spher")

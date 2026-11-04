@@ -543,3 +543,33 @@ def prototype(lib) -> None:
         ndpointer(c_double, ndim=2, flags=("F", "W")),  # randfield(ldrand,nreal), out
     )
     lib.fieldgen3d_sva.restype = c_int
+
+    # fieldgen3d_sva2(
+    #   nsrc,ecs,ncs,zcs,vols,iid,ntarg,ect,nct,zct,active,mean,var,
+    #   ahmax,ahmin,avert,bearing,dip,rake,transtype,avetype,power,targval)
+    lib.fieldgen3d_sva2.argtypes = (
+        POINTER(c_int),  # nsrc, in
+        ndpointer(c_double, ndim=1, flags="F"),  # ecs(nsrc), in
+        ndpointer(c_double, ndim=1, flags="F"),  # ncs(nsrc), in
+        ndpointer(c_double, ndim=1, flags="F"),  # zcs(nsrc), in
+        ndpointer(c_double, ndim=1, flags="F"),  # vols(nsrc), in
+        ndpointer(c_double, ndim=1, flags="F"),  # iid(nsrc), in
+        POINTER(c_int),  # ntarg, in
+        ndpointer(c_double, ndim=1, flags="F"),  # ect(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # nct(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # zct(ntarg), in
+        ndpointer(c_int, ndim=1, flags="F"),  # active(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # mean(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # var(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # ahmax(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # ahmin(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # avert(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # bearing(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # dip(ntarg), in
+        ndpointer(c_double, ndim=1, flags="F"),  # rake(ntarg), in
+        POINTER(c_int),  # transtype, in
+        POINTER(c_int),  # avetype, in
+        POINTER(c_double),  # power, in
+        ndpointer(c_double, ndim=1, flags=("F", "W")),  # targval(ntarg), out
+    )
+    lib.fieldgen3d_sva2.restype = c_int

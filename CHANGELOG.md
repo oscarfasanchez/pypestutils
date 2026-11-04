@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `fieldgen3d_sva2` computes one 3D stochastic field from user-supplied normal variates
+  at source points (as the PEST utility FIELDGEN3D_SVA2), so the variates can be
+  parameters; source points need not coincide with the target points
 ### Changed
 ### Fixed
 

@@ -510,6 +510,37 @@ module function_interfaces
        real(kind=c_double), intent(out)  :: randfield(ldrand,nreal)
    end function fieldgen3d_sva
 
+   integer (kind=c_int) function fieldgen3d_sva2(            &
+                              nsrc,                          &
+                              ecs,ncs,zcs,vols,iid,          &
+                              ntarg,                         &
+                              ect,nct,zct,active,            &
+                              mean,var,                      &
+                              ahmax,ahmin,avert,             &
+                              bearing,dip,rake,              &
+                              transtype,avetype,power,       &
+                              targval)                       &
+                    bind(c,name="fieldgen3d_sva2")
+       use iso_c_binding, only: c_int,c_double
+       integer(kind=c_int), intent(in)   :: nsrc
+       real(kind=c_double), intent(in)   :: ecs(nsrc),ncs(nsrc),zcs(nsrc)
+       real(kind=c_double), intent(in)   :: vols(nsrc)
+       real(kind=c_double), intent(in)   :: iid(nsrc)
+       integer(kind=c_int), intent(in)   :: ntarg
+       real(kind=c_double), intent(in)   :: ect(ntarg),nct(ntarg),zct(ntarg)
+       integer(kind=c_int), intent(in)   :: active(ntarg)
+       real(kind=c_double), intent(in)   :: mean(ntarg)
+       real(kind=c_double), intent(in)   :: var(ntarg)
+       real(kind=c_double), intent(in)   :: ahmax(ntarg),ahmin(ntarg),avert(ntarg)
+       real(kind=c_double), intent(in)   :: bearing(ntarg)
+       real(kind=c_double), intent(in)   :: dip(ntarg)
+       real(kind=c_double), intent(in)   :: rake(ntarg)
+       integer(kind=c_int), intent(in)   :: transtype
+       integer(kind=c_int), intent(in)   :: avetype
+       real(kind=c_double), intent(in)   :: power
+       real(kind=c_double), intent(out)  :: targval(ntarg)
+   end function fieldgen3d_sva2
+
 end interface
 
 end module function_interfaces
