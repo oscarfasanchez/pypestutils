@@ -158,7 +158,34 @@ def test_get_cell_centres_mf6(): ...
 def test_uninstall_mf6_grid(): ...
 
 
-def test_calc_mf6_interp_factors(): ...
+def test_calc_mf6_interp_factors(tmp_path):
+    """Rings of five to seven cells give the same factors as before."""
+    import numpy as np
+    import pandas as pd
+
+    # Three stars of 5, 6 and 7 cells around one vertex each. Near a star's centre
+    # the only ring of cell centres holding a point is the whole star.
+    # star.fac.std was written by the library before the ring search changed.
+    pts = pd.read_csv(data_dir / "star_points.csv")
+    lib = PestUtilsLib()
+    lib.install_mf6_grid_from_file("star", data_dir / "star.disv.grb")
+    factorfile = tmp_path / "star.fac"
+    success = lib.calc_mf6_interp_factors(
+        "star", pts.x, pts.y, pts.layer, factorfile, "text", tmp_path / "star.bln"
+    )
+    lib.uninstall_mf6_grid("star")
+    assert success.sum() == 29
+
+    rows = [line.split() for line in factorfile.read_text().splitlines()]
+    sizes = {
+        int(t[0]) for t in rows if t and t[0].isdigit() and len(t) == 1 + 2 * int(t[0])
+    }
+    assert {5, 6, 7} <= sizes
+    np.testing.assert_allclose(
+        np.array(factorfile.read_text().split(), dtype=float),
+        np.array((data_dir / "star.fac.std").read_text().split(), dtype=float),
+        atol=1e-8,
+    )
 
 
 def test_interp_from_mf6_depvar_file(): ...

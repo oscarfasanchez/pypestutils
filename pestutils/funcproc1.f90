@@ -1970,7 +1970,7 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
        integer                        :: in1,in2,in3,in4
        integer                        :: nvcell,nvert,jvert,itemp,l,m
        integer                        :: numtri
-       integer                        :: jlayoffset,mincon,icell,icon
+       integer                        :: jlayoffset,mincon,maxcon,icell,icon
        integer                        :: ic1,ic2,ic3,ic4
        integer                        :: i1,i2,i3
        integer                        :: ncon1,ncon2,ncon3,icon1,icon2,icon3,numcon,ncon
@@ -2345,11 +2345,14 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
             mincon=99999999
 ! -- We look for a three or four connection path back to the cell.
 ! -- Make sure that this works for layers other than the first.
+! -- Paths of three connections are tried first, then four, and so on up to seven. The search
+! -- order is unchanged, so the smallest ring holding the point is the same one as before.
             icell=(iilay-1)*ncpl+iicpl
             if(distype.eq.3)then       ! DISU: the node itself; cellx and celly are per node
               jlayoffset=0
               icell=iicpl
             end if
+            do maxcon=3,7
             ncon=ia(icell+1)-ia(icell)-1
             do icon=1,ncon
               ic1=ja(ia(icell)+icon)
@@ -2380,6 +2383,7 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                       go to 430
                     end if
                   end if
+                  if(maxcon.lt.4) cycle
                   ncon3=ia(ic3+1)-ia(ic3)-1
                   do icon3=1,ncon3
                     ic4=ja(ia(ic3)+icon3)
@@ -2418,6 +2422,7 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                         end if
                       end if
                     else
+                      if(maxcon.lt.5) cycle
                       ncon4=ia(ic4+1)-ia(ic4)-1
                       do icon4=1,ncon4
                         ic5=ja(ia(ic4)+icon4)
@@ -2461,6 +2466,7 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                             end if
                           end if
                         else
+                          if(maxcon.lt.6) cycle
                           ncon5=ia(ic5+1)-ia(ic5)-1
                           do icon5=1,ncon5
                             ic6=ja(ia(ic5)+icon5)
@@ -2509,6 +2515,7 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                                 end if
                               end if
                             else
+                              if(maxcon.lt.7) cycle
                               ncon6=ia(ic6+1)-ia(ic6)-1
                               do icon6=1,ncon6
                                 ic7=ja(ia(ic6)+icon6)
@@ -2571,6 +2578,8 @@ integer (kind=c_int) function calc_mf6_interp_factors(gridname,        &
                   end do
                 end do
               end do
+            end do
+            if(mincon.lt.99999999) exit
             end do
             if(mincon.lt.99999999)then
               numcon=mincon
