@@ -1910,6 +1910,7 @@ class PestUtilsLib:
         transtype: int | str | enum.TransType,
         avetype: int | str | enum.VarioType,
         power: float,
+        cutoff: float = 1.0e-5,
     ) -> npt.NDArray[np.float64]:
         """Compute one 3D stochastic field from user-supplied normal variates.
 
@@ -1951,6 +1952,11 @@ class PestUtilsLib:
             Averaging function type, where 1:spher, 2:exp, 3:gauss, 4:pow.
         power : float
             Power used if avetype is 4 (pow).
+        cutoff : float, default 1.0e-5
+            Summation factor cutoff: averaging function values below it are
+            not summed, which shortens the reach of the exponential (11.5
+            ranges at 1e-5, 6.9 at 1e-3) and Gaussian functions and speeds up
+            the computation. Use 0 for no cutoff.
 
         Returns
         -------
@@ -2002,6 +2008,7 @@ class PestUtilsLib:
             byref(c_int(transtype)),
             byref(c_int(avetype)),
             byref(c_double(power)),
+            byref(c_double(cutoff)),
             targval,
         )
         if res != 0:

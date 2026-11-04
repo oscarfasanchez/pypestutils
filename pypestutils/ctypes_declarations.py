@@ -546,7 +546,7 @@ def prototype(lib) -> None:
 
     # fieldgen3d_sva2(
     #   nsrc,ecs,ncs,zcs,vols,iid,ntarg,ect,nct,zct,active,mean,var,
-    #   ahmax,ahmin,avert,bearing,dip,rake,transtype,avetype,power,targval)
+    #   ahmax,ahmin,avert,bearing,dip,rake,transtype,avetype,power,cutoff,targval)
     lib.fieldgen3d_sva2.argtypes = (
         POINTER(c_int),  # nsrc, in
         ndpointer(c_double, ndim=1, flags="F"),  # ecs(nsrc), in
@@ -570,6 +570,7 @@ def prototype(lib) -> None:
         POINTER(c_int),  # transtype, in
         POINTER(c_int),  # avetype, in
         POINTER(c_double),  # power, in
+        POINTER(c_double),  # cutoff, in
         ndpointer(c_double, ndim=1, flags=("F", "W")),  # targval(ntarg), out
     )
     lib.fieldgen3d_sva2.restype = c_int

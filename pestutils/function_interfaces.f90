@@ -519,7 +519,7 @@ module function_interfaces
                               ahmax,ahmin,avert,             &
                               bearing,dip,rake,              &
                               transtype,avetype,power,       &
-                              targval)                       &
+                              cutoff,targval)                &
                     bind(c,name="fieldgen3d_sva2")
        use iso_c_binding, only: c_int,c_double
        integer(kind=c_int), intent(in)   :: nsrc
@@ -538,6 +538,7 @@ module function_interfaces
        integer(kind=c_int), intent(in)   :: transtype
        integer(kind=c_int), intent(in)   :: avetype
        real(kind=c_double), intent(in)   :: power
+       real(kind=c_double), intent(in)   :: cutoff
        real(kind=c_double), intent(out)  :: targval(ntarg)
    end function fieldgen3d_sva2
 

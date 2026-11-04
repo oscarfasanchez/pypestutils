@@ -207,27 +207,35 @@ def test_fieldgen3d_sva(): ...
 
 
 @pytest.mark.parametrize(
-    "case, transtype, avetype",
-    [("exp_natural", "none", "exp"), ("gauss_log", "log", "gauss")],
+    "case, target, transtype, avetype, cutoff",
+    [
+        ("exp_natural", "target.csv", "none", "exp", 1e-5),
+        ("gauss_log", "target.csv", "log", "gauss", 1e-5),
+        ("exp_short", "target_short.csv", "none", "exp", 1e-5),
+        ("exp_short_cutoff1e-3", "target_short.csv", "none", "exp", 1e-3),
+    ],
 )
-def test_fieldgen3d_sva2_matches_the_pest_utility(case, transtype, avetype):
+def test_fieldgen3d_sva2_matches_the_pest_utility(
+    case, target, transtype, avetype, cutoff
+):
     """The same field as FIELDGEN3D_SVA2 for the same source points and variates.
 
     36 source points on a lattice, 60 scattered target points, anisotropic and
     rotated averaging with ahmax varying per target; the .std files were written
-    by FIELDGEN3D_SVA2.
+    by FIELDGEN3D_SVA2. With the short ranges of target_short.csv the cutoff
+    truncates the sums, so its two cases differ.
     """
     import numpy as np
     import pandas as pd
 
     d = data_dir / "fieldgen3d_sva2"
-    src, tgt = pd.read_csv(d / "source.csv"), pd.read_csv(d / "target.csv")
+    src, tgt = pd.read_csv(d / "source.csv"), pd.read_csv(d / target)
     iid = pd.read_csv(d / "iid.csv")["iid"]
     res = PestUtilsLib().fieldgen3d_sva2(
         src.x, src.y, src.z, src.volume, iid,
         tgt.x, tgt.y, tgt.z, 1, tgt["mean"], tgt.variance,
         tgt.a_hmax, tgt.a_hmin, tgt.a_vert, tgt.bearing, tgt.dip, tgt.rake,
-        transtype, avetype, 1.0,
+        transtype, avetype, 1.0, cutoff,
     )  # fmt: skip
     np.testing.assert_allclose(res, np.loadtxt(d / f"{case}.std"), rtol=1e-6)
 
@@ -244,10 +252,12 @@ def test_fieldgen3d_sva2_is_linear_in_the_variates():
     active[0] = 0
     lib = PestUtilsLib()
 
-    def field(variates, mean=0.0, var=1.0, ahmax=30.0, sx=x, avetype="exp"):
+    def field(
+        variates, mean=0.0, var=1.0, ahmax=30.0, sx=x, avetype="exp", cutoff=1e-5
+    ):
         return lib.fieldgen3d_sva2(
             sx, y, z, 1.0, variates, x, y, z, active, mean, var,
-            ahmax, ahmax, 5.0, 0.0, 0.0, 0.0, "none", avetype, 1.0,
+            ahmax, ahmax, 5.0, 0.0, 0.0, 0.0, "none", avetype, 1.0, cutoff,
         )  # fmt: skip
 
     base = field(iid)
@@ -255,6 +265,10 @@ def test_fieldgen3d_sva2_is_linear_in_the_variates():
     np.testing.assert_allclose(field(iid, var=4.0)[1:], 2 * base[1:])
     np.testing.assert_allclose(field(iid, mean=5.0)[1:], base[1:] + 5.0)
     np.testing.assert_allclose(field(2 * iid)[1:], 2 * base[1:])
+    # no cutoff sums every source; a cutoff must be in [0, 1)
+    assert np.isfinite(field(iid, cutoff=0.0)[1:]).all()
+    with pytest.raises(PestUtilsLibError, match="CUTOFF"):
+        field(iid, cutoff=1.0)
     # a target out of reach of every source point is an error
     with pytest.raises(PestUtilsLibError, match="No source point"):
         field(iid, ahmax=1.0, sx=x + 500.0, avetype="spher")

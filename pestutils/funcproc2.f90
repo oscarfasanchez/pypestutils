@@ -3893,7 +3893,7 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
                               ahmax,ahmin,avert,             &
                               bearing,dip,rake,              &
                               transtype,avetype,power,       &
-                              targval)                       &
+                              cutoff,targval)                &
                  bind(C,name="fieldgen3d_sva2")
 
 ! -- This function computes one 3D stochastic field from user-supplied independent normal
@@ -3924,6 +3924,7 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
        integer(kind=c_int), intent(in)   :: transtype              ! Stochastic field pertains to natural(0) or log(1) props
        integer(kind=c_int), intent(in)   :: avetype                ! 1:spher,2:exp,3:gauss,4:pow
        real(kind=c_double), intent(in)   :: power                  ! Power used in power AVETYPE
+       real(kind=c_double), intent(in)   :: cutoff                 ! Summation factor cutoff (1.0E-5 usual; 0 for none)
        real(kind=c_double), intent(out)  :: targval(ntarg)         ! Field at target points (1.1E31 if inactive)
 
        integer                 :: jtarg,ksrc,ierr
@@ -3950,7 +3951,7 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
        fieldgen3d_sva2=0
        function_name='fieldgen3d_sva2()'
        pidiv180=3.1415926535898d0/180.0d0
-       dlim=1.0d-5
+       dlim=cutoff
        targval=1.1d31          ! an array
 
 ! -- Check input arguments.
@@ -3974,6 +3975,11 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
            ' must be greater than zero.')
            go to 9890
          end if
+       end if
+       if((cutoff.lt.0.0d0).or.(cutoff.ge.1.0d0))then
+         write(amessage,108) trim(function_name)
+108      format('The CUTOFF argument of function ',a,' must be zero or more, and less than one.')
+         go to 9890
        end if
        if(nsrc.le.0)then
          varname='NSRC'
@@ -4033,15 +4039,24 @@ integer (kind=c_int) function fieldgen3d_sva2(               &
          end if
        end do
 
-! -- Evaluate limit threshold
+! -- Evaluate limit threshold (no limit if CUTOFF is zero, except where the averaging
+!    function itself ends)
 
-       if(avetype.eq.2)then
-         dlim=-log(dlim)
-         dlim=dlim*dlim              ! applies to x^2
-       else if(avetype.eq.3)then
-         dlim=-log(dlim)             ! applies to x^2
+       if(dlim.eq.0.0d0)then
+         if((avetype.eq.2).or.(avetype.eq.3))then
+           dlim=1.0d30
+         else
+           dlim=1.0d0
+         end if
        else
-         dlim=1.0d0
+         if(avetype.eq.2)then
+           dlim=-log(dlim)
+           dlim=dlim*dlim              ! applies to x^2
+         else if(avetype.eq.3)then
+           dlim=-log(dlim)             ! applies to x^2
+         else
+           dlim=1.0d0
+         end if
        end if
 
 ! -- Source points are sorted into boxes a quarter as wide as the longest reach of the
