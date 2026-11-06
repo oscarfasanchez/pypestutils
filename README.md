@@ -1,5 +1,25 @@
 # PyPestUtils
 
+## MODFLOW-USG / DISU fork
+
+This branch contains the USG/DISU additions described in
+[FORK_CHANGES.md](FORK_CHANGES.md). Prebuilt wheels for the fork are published
+in the [v0.3.1-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.1-usg.1)
+with Python version `0.3.1+usg.1`.
+
+Use [environment-usg.yml](environment-usg.yml), or copy its `pip:` entries
+into your environment file. Pip downloads the matching native wheel
+automatically:
+
+```sh
+conda env create -f environment-usg.yml
+conda activate ppu-usg
+```
+
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for platform requirements and direct
+pip installation. Each environment uses one `pypestutils` installation;
+separate environments can retain the upstream version and the fork version.
+
 Suite of Python tools based on PEST utilities to support parameterization with pilot points, drawing stochastic realizations, and MODFLOW post-processing for structured and unstructured grids. This package consists of a (pre-)compiled shared fortran library, and a corresponding low-level python wrapper around the library functions.  There are also higher-level "helper" functions to further abstract the granular low-level function calls for common workflow elements.  
 
 The low-level functions are relatively strict in their argument types - this is required to effectively pass the array-type data container references to the fortran library.  As such, the low-level python functions perform considerable type checking.  The higher-level helpers attempt to support a variety of argument types and will attempt coerce to the required type.  
@@ -38,7 +58,7 @@ The documentation for the shared FORTRAN library can be found [here](docs/pestut
 
 pypestutils requires `numpy` and `pandas`
 
-### Easy way
+### Upstream PyPI release
 
 Use `pip` to install a built distribution for Windows, Linux or macOS:
 
