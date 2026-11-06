@@ -1,23 +1,13 @@
 name: Build wheels
 
 on:
-  schedule:
-    - cron: '42 8 2-30/2 * *' # At 08:42 UTC on every 2nd day-of-month
-  pull_request:
-    paths:  # only run this with PRs that touch these files
-      - ".github/workflows/release.yml"
-      - "scripts/build_lib.*"
-      - "pyproject.toml"
-      - "setup.py"
   push:
-    branches:
-      - main
     tags:
-      - "*"
-  release:
-    types:
-      - published
+      - "v*-usg.*"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build_wheels:
@@ -33,10 +23,14 @@ jobs:
           arch: aarch64
         - os: windows-2022
           arch: AMD64
-        - os: macos-14
+        - os: macos-15
           arch: arm64
-          macosx_deployment_target: "14.0"
+          macosx_deployment_target: "15.0"
           cmake_osx_architectures: arm64
+        - os: macos-15-intel
+          arch: x86_64
+          macosx_deployment_target: "15.0"
+          cmake_osx_architectures: x86_64
 
     steps:
       - uses: actions/checkout@v5
@@ -66,12 +60,18 @@ jobs:
           LDFLAGS: -static-libgcc -static-libgfortran -static-libquadmath -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive
         run: bash scripts/build_lib.sh
 
+      - name: Install GCC Fortran (macOS)
+        if: runner.os == 'macOS'
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 13
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
         env:
           CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_ENVIRONMENT_MACOS:
-            FC=gfortran-13
             MACOSX_DEPLOYMENT_TARGET='${{ matrix.macosx_deployment_target }}'
             CMAKE_OSX_ARCHITECTURES='${{ matrix.cmake_osx_architectures }}'
 
@@ -94,16 +94,15 @@ jobs:
           name: cibw-sdist
           path: dist/*.tar.gz
 
-  upload_pypi:
+  draft_github_release:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    environment: pypi
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      id-token: write
-    if: github.event_name == 'release' && github.event.action == 'published'
-    # or, alternatively, upload to PyPI on every tag starting with 'v' (remove on: release above to use this)
-    # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      contents: write
     steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/download-artifact@v6
         with:
           # unpacks all CIBW artifacts into dist/
@@ -111,5 +110,16 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Add installation files and checksums
+        run: |
+          cp environment-usg.yml RELEASE_NOTES.md dist/
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Create draft fork release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft \
+            --title "$RELEASE_TAG" --notes-file RELEASE_NOTES.md

@@ -1,5 +1,10 @@
 # Changes in the pypestutils fork
 
+Prebuilt wheels and installation instructions are available in the
+[v0.3.1-usg.1 release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.1-usg.1).
+Use [environment-usg.yml](environment-usg.yml) to create a Conda environment
+that automatically downloads the appropriate wheel.
+
 This note summarizes the additions on the `feat/mfusg-grids` branch compared
 with upstream `develop` at `6721975` (`[pre-commit.ci] pre-commit autoupdate
 (#65)`). It covers the fork work in this branch; it is not a list of changes
