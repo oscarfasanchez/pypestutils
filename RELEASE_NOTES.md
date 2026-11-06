@@ -43,6 +43,6 @@ upstream both provide `import pypestutils`.
 ## Build and validation
 
 The tag triggers native-library compilation and wheel builds in GitHub
-Actions. Windows, Linux x86_64, and macOS Intel wheels use the existing
-wheel test suite. ARM64 and musllinux wheel tests are skipped by the existing
+Actions. Windows, Linux x86_64, and both macOS wheels use the existing
+wheel test suite. Linux ARM64 and musllinux wheel tests are skipped by the existing
 build configuration. `SHA256SUMS` records the release asset checksums.
