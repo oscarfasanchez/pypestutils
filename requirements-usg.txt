@@ -1,7 +1,7 @@
 # pypestutils fork with GPLANE, USG and DISU; Python >=3.10.
 # Supports Windows x64, glibc Linux x64/ARM64 and macOS 15+ Intel/Apple Silicon.
-pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-win_amd64.whl ; sys_platform == 'win32' and platform_machine == 'AMD64'
-pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64'
-pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl ; sys_platform == 'linux' and platform_machine == 'aarch64'
-pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-macosx_15_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'
-pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-macosx_15_0_x86_64.whl ; sys_platform == 'darwin' and platform_machine == 'x86_64'
+pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-win_amd64.whl ; sys_platform == 'win32' and platform_machine == 'AMD64'
+pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64'
+pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl ; sys_platform == 'linux' and platform_machine == 'aarch64'
+pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-macosx_15_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'
+pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-macosx_15_0_x86_64.whl ; sys_platform == 'darwin' and platform_machine == 'x86_64'

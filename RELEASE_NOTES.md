@@ -29,7 +29,7 @@ An ordinary `pip install pypestutils` continues to select upstream from PyPI.
 For a direct Windows x64 wheel installation:
 
 ```sh
-python -m pip install "pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2%2Busg.1-py3-none-win_amd64.whl"
+python -m pip install "pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-win_amd64.whl"
 ```
 
 ## Install with Conda / environment.yml

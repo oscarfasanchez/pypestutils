@@ -46,5 +46,3 @@ def test_mf6_mod2obs(tmp_path):
     )
     iresults = results["interpolated_results"]
     assert iresults.shape[0] == obs_df.shape[0]
-
-
