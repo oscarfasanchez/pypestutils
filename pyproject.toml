@@ -75,11 +75,10 @@ include = ["pypestutils", "pypestutils.*"]
 build = "cp310-*"
 build-verbosity = 3
 repair-wheel-command = "python scripts/repair_wheel.py -w {dest_dir} {wheel}"
-test-requires = "tox"
-test-command = "tox --conf {project} --installpkg {wheel}"
-test-skip = [
-    "*-musllinux*",
-    "*aarch64",  # slow!
+test-requires = ["pytest", "pytest-timeout"]
+test-command = [
+    "python {project}/scripts/check_wheel.py",
+    "python -m pytest {project}/tests --ignore={project}/tests/test_notebooks.py -q --timeout=300",
 ]
 # see also CIBW_ENVIRONMENT_MACOS in release.yml
 before-build = [

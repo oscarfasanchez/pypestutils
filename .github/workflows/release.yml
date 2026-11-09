@@ -112,7 +112,7 @@ jobs:
 
       - name: Add installation files and checksums
         run: |
-          cp environment-usg.yml RELEASE_NOTES.md dist/
+          cp environment-usg.yml requirements-usg.txt RELEASE_NOTES.md dist/
           cd dist
           sha256sum * > SHA256SUMS
 

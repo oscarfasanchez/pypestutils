@@ -1,4 +1,6 @@
 include meson.build meson.options
+include environment-usg.yml requirements-usg.txt RELEASE_NOTES.md FORK_CHANGES.md
+include docs/gplane.md benchmarks/README.md benchmarks/results/gplane_windows.json
 graft etc
 graft pestutils
 graft pypestutils

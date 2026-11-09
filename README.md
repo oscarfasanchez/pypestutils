@@ -1,30 +1,37 @@
 # PyPestUtils
 
-The `codex/gplane-3d` development branch also adds
-[3D GPLANE structural overlays](docs/gplane.md), with
-[PLPROC comparisons and benchmarks](benchmarks/README.md).
-This feature requires building this branch's native library; it is not in
-the existing `v0.3.1-usg.1` release wheels.
+## GPLANE / MODFLOW-USG / DISU fork
 
-## MODFLOW-USG / DISU fork
+This fork includes [3D GPLANE structural overlays](docs/gplane.md),
+MODFLOW-USG and MODFLOW 6 DISU support. See [FORK_CHANGES.md](FORK_CHANGES.md)
+and the [PLPROC comparisons and benchmarks](benchmarks/README.md).
 
-This branch contains the USG/DISU additions described in
-[FORK_CHANGES.md](FORK_CHANGES.md). Prebuilt wheels for the fork are published
-in the [v0.3.1-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.1-usg.1)
-with Python version `0.3.1+usg.1`.
+Prebuilt wheels are available in the
+[v0.3.2-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.2-usg.1)
+with package version `0.3.2+usg.1`. No compiler or repository checkout is needed.
 
-Use [environment-usg.yml](environment-usg.yml), or copy its `pip:` entries
-into your environment file. Pip downloads the matching native wheel
-automatically:
+Install with pip (the requirements file selects the platform wheel):
 
 ```sh
-conda env create -f environment-usg.yml
-conda activate ppu-usg
+python -m pip install -r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt
 ```
 
-See [RELEASE_NOTES.md](RELEASE_NOTES.md) for platform requirements and direct
-pip installation. Each environment uses one `pypestutils` installation;
-separate environments can retain the upstream version and the fork version.
+For Conda, download [environment-usg.yml](environment-usg.yml) and run
+`conda env create -f environment-usg.yml`, or put this in your own file:
+
+```yaml
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - "-r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt"
+```
+
+The automatic requirements support Windows x64, Linux glibc 2.27+ on x64 or
+ARM64, and macOS 15+ on Intel or Apple Silicon. Alpine/musl wheels are separate
+release assets. See [RELEASE_NOTES.md](RELEASE_NOTES.md) for direct wheel URLs
+and validation. The package and import name remain `pypestutils`; separate
+environments can retain upstream and fork installations.
 
 Suite of Python tools based on PEST utilities to support parameterization with pilot points, drawing stochastic realizations, and MODFLOW post-processing for structured and unstructured grids. This package consists of a (pre-)compiled shared fortran library, and a corresponding low-level python wrapper around the library functions.  There are also higher-level "helper" functions to further abstract the granular low-level function calls for common workflow elements.  
 

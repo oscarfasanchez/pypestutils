@@ -1,10 +1,9 @@
 # 3D GPLANE structural overlays
 
-The `codex/gplane-3d` development branch adds PLPROC-style GPLANE overlays to
-the fork. Its Python version is `0.3.2.dev0+gplane.1`. The existing
-`v0.3.1-usg.1` release wheels do **not** contain this feature. Build this branch's
-native library using [BUILD.md](../BUILD.md) before using the API; installing
-the Python source alone does not compile Fortran.
+The fork release `v0.3.2-usg.1` (Python version `0.3.2+usg.1`) includes
+PLPROC-style GPLANE overlays and prebuilt native libraries. Install a wheel
+using [the release instructions](../RELEASE_NOTES.md); a compiler is only
+needed when [building from source](../BUILD.md).
 
 A GPLANE defines a planar structural feature in global XYZ coordinates. Values
 on its regular local grid are interpolated onto the plane, then applied to

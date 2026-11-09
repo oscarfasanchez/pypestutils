@@ -1,6 +1,6 @@
 # Changes in the pypestutils fork
 
-## GPLANE development branch
+## GPLANE release additions
 
 `codex/gplane-3d` builds on the USG additions below and adds grid-independent
 3D GPLANE overlays: arbitrary plane orientation, optional polygon limits,
@@ -11,15 +11,14 @@ is exposed through `pypestutils.gplane.GPlane` and
 with PLPROC.
 
 See [the API guide](docs/gplane.md) and
-[PLPROC validation and benchmarks](benchmarks/README.md). This development
-feature has version `0.3.2.dev0+gplane.1`; the existing release below does not
-include it. This covers the core overlay workflow, not PLPROC's entire script
-language or source-selection machinery.
+[PLPROC validation and benchmarks](benchmarks/README.md). GPLANE is included in
+`v0.3.2-usg.1` (Python version `0.3.2+usg.1`). This covers the core overlay
+workflow, not PLPROC's entire script language or source-selection machinery.
 
-## USG release
+## Fork wheels and earlier USG additions
 
 Prebuilt wheels and installation instructions are available in the
-[v0.3.1-usg.1 release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.1-usg.1).
+[v0.3.2-usg.1 release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.2-usg.1).
 Use [environment-usg.yml](environment-usg.yml) to create a Conda environment
 that automatically downloads the appropriate wheel.
 
