@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Pin and verify the MF6/PEST++ executables used by example notebooks, cache
+  them across notebook/CI runs, and fall back to GitHub's asset API on download
+  failures. Select native Intel/Apple Silicon PEST++ binaries explicitly.
+- Execute notebooks in isolated workspaces so tests preserve example inputs.
+- Make tox propagate test failures instead of ignoring failed outcomes.
 
 ## [0.3.2+usg.1] - 2026-11-09
 ### Added

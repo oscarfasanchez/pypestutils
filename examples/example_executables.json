@@ -1,0 +1,66 @@
+{
+  "linux-x86_64": {
+    "mf6": {
+      "repository": "MODFLOW-ORG/modflow6",
+      "version": "6.7.0",
+      "asset": "mf6.7.0_linux.zip",
+      "asset_id": 351740560,
+      "sha256": "f83e743bac1b3009836a44e6e4aa4b4c522ac2e2c7d291e280db47f68353ebdc"
+    },
+    "pestpp-ies": {
+      "repository": "pestpp/pestpp",
+      "version": "5.2.25",
+      "asset": "pestpp-5.2.25-linux.tar.gz",
+      "asset_id": 339625131,
+      "sha256": "2c5942e8518f19eba1c00657eb61db0b6cc2497a850dca998026aa10de535b9a"
+    }
+  },
+  "darwin-x86_64": {
+    "mf6": {
+      "repository": "MODFLOW-ORG/modflow6",
+      "version": "6.7.0",
+      "asset": "mf6.7.0_mac.zip",
+      "asset_id": 351740807,
+      "sha256": "eaa08365aa0a377f676c6c5ebe1618e565f9027aed095121b7d3944b6dbee748"
+    },
+    "pestpp-ies": {
+      "repository": "pestpp/pestpp",
+      "version": "5.2.25",
+      "asset": "pestpp-5.2.25-imac.tar.gz",
+      "asset_id": 344256650,
+      "sha256": "f37fe1ed77ecc65348754f6295607f3291b5cc8d1a2c5870dc7415aaca31add3"
+    }
+  },
+  "darwin-arm64": {
+    "mf6": {
+      "repository": "MODFLOW-ORG/modflow6",
+      "version": "6.7.0",
+      "asset": "mf6.7.0_macarm.zip",
+      "asset_id": 351741869,
+      "sha256": "07c6134d628956d806028c1800d6bd52ad62f07bd46f73cc911151209f1392d9"
+    },
+    "pestpp-ies": {
+      "repository": "pestpp/pestpp",
+      "version": "5.2.25",
+      "asset": "pestpp-5.2.25-mac.tar.gz",
+      "asset_id": 339625161,
+      "sha256": "db41dac5c11e1a1b6171a91e0a79f9aba34f849f2607f0e0bf710c2882a6a1a0"
+    }
+  },
+  "windows-x86_64": {
+    "mf6": {
+      "repository": "MODFLOW-ORG/modflow6",
+      "version": "6.7.0",
+      "asset": "mf6.7.0_win64.zip",
+      "asset_id": 351742054,
+      "sha256": "6ee75528b1383293dfa43852c5f201da4d50c1f64302a931a670a3ddf6c8ef25"
+    },
+    "pestpp-ies": {
+      "repository": "pestpp/pestpp",
+      "version": "5.2.25",
+      "asset": "pestpp-5.2.25-win.zip",
+      "asset_id": 339625100,
+      "sha256": "26db7a7c32432d775e1557706666e3d77d2c97b1f91e8b0c8cc3708cd3c0df8f"
+    }
+  }
+}
