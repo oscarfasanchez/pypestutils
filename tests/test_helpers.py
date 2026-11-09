@@ -1,10 +1,14 @@
+"""Regression tests for high-level helpers in isolated model workspaces."""
+
 import os
+import shutil
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 
-def test_mf6_mod2obs():
+def test_mf6_mod2obs(tmp_path):
     import pypestutils.helpers as helpers
 
     start_datetime = pd.to_datetime("1-1-2000")
@@ -22,7 +26,7 @@ def test_mf6_mod2obs():
     )
     obs_df.loc[:, "datetime"] = dts
 
-    ws = os.path.join("tests", "data", "p09")
+    ws = shutil.copytree(Path(__file__).parent / "data" / "p09", tmp_path / "p09")
     case = "gwf-p09-mf6"
     obs_csv = os.path.join(ws, "obs.csv")
     obs_df.to_csv(obs_csv)
@@ -44,8 +48,3 @@ def test_mf6_mod2obs():
     assert iresults.shape[0] == obs_df.shape[0]
 
 
-if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, os.path.join(".."))
-    test_mf6_mod2obs()
