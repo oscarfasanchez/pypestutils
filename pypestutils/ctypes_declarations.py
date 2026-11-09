@@ -594,3 +594,32 @@ def prototype(lib) -> None:
         ndpointer(c_double, ndim=2, flags=("F", "W")),  # randfield(ldrand,nreal), out
     )
     lib.fieldgen3d_sva.restype = c_int
+
+    # Dense weights use C (target, source) == Fortran (source, target) layout.
+    vector = ndpointer(c_double, ndim=1, flags="C")
+    lib.calc_gplane_factors.argtypes = (
+        POINTER(c_int),
+        vector,
+        vector,
+        POINTER(c_int),
+        vector,
+        vector,
+        vector,
+        vector,
+        vector,
+        vector,
+        vector,
+        POINTER(c_int),
+        vector,
+        vector,
+        ndpointer(c_int, ndim=1, flags="C"),
+        POINTER(c_double),
+        POINTER(c_double),
+        POINTER(c_double),
+        POINTER(c_double),
+        POINTER(c_double),
+        POINTER(c_double),
+        ndpointer(c_double, ndim=2, flags=("C", "W")),
+        ndpointer(c_double, ndim=1, flags=("C", "W")),
+    )
+    lib.calc_gplane_factors.restype = c_int

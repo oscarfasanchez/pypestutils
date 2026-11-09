@@ -5,6 +5,7 @@ lib_sources = files(
   'dimvar_c.f90',
   'funcproc1.f90',
   'funcproc2.f90',
+  'gplane.f90',
   'function_interfaces.f90',
   'lapack1.F',
   'sgsim_code.f90',

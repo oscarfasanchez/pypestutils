@@ -1,0 +1,83 @@
+{
+  "platform": "Windows-10-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "repeats": 3,
+  "plproc_sha256": "f20210d11160f34cb679afbb1f197bf46c3b6bb48a69b51e97623cfc89e34734",
+  "library_sha256": "62bbc2fb69225c27e1504b117badef41a488f84acb9a21eddf4c483e3e6fca0c",
+  "timing_scope": {
+    "ppu_factor_apply_s": "In-process factor construction and one application; excludes file I/O.",
+    "ppu_cached_apply_s": "In-process application of precomputed factors; excludes file I/O.",
+    "plproc_process_s": "Subprocess startup, input reads, geometry/interpolation and output write; inputs prepared before timing.",
+    "ppu_build_write_s": "Python plane construction, native factors, application and output write; existing input arrays in memory."
+  },
+  "cases": [
+    {
+      "targets": 1000,
+      "sources": 100,
+      "bounded": false,
+      "max_absolute_error": 5.113739842244058e-06,
+      "ppu_factor_apply_s": 0.002104699960909784,
+      "ppu_cached_apply_s": 8.699996396899223e-05,
+      "ppu_build_write_s": 0.0044513000175356865,
+      "plproc_process_s": 0.02970009995624423,
+      "factor_memory_bytes": 808000
+    },
+    {
+      "targets": 10000,
+      "sources": 100,
+      "bounded": false,
+      "max_absolute_error": 5.644752750555426e-06,
+      "ppu_factor_apply_s": 0.022063000011257827,
+      "ppu_cached_apply_s": 0.0005981000140309334,
+      "ppu_build_write_s": 0.03700419992674142,
+      "plproc_process_s": 0.150095000048168,
+      "factor_memory_bytes": 8080000
+    },
+    {
+      "targets": 100000,
+      "sources": 100,
+      "bounded": false,
+      "max_absolute_error": 6.231643016718635e-06,
+      "ppu_factor_apply_s": 0.19533390004653484,
+      "ppu_cached_apply_s": 0.008571600075811148,
+      "ppu_build_write_s": 0.3270297999260947,
+      "plproc_process_s": 1.2248594999546185,
+      "factor_memory_bytes": 80800000
+    },
+    {
+      "targets": 1000,
+      "sources": 100,
+      "bounded": true,
+      "max_absolute_error": 3.898985596606508e-06,
+      "ppu_factor_apply_s": 0.002383999992161989,
+      "ppu_cached_apply_s": 8.200004231184721e-05,
+      "ppu_build_write_s": 0.005568499909713864,
+      "plproc_process_s": 0.030370700056664646,
+      "factor_memory_bytes": 808000
+    },
+    {
+      "targets": 10000,
+      "sources": 100,
+      "bounded": true,
+      "max_absolute_error": 4.97646496810944e-06,
+      "ppu_factor_apply_s": 0.020741599961183965,
+      "ppu_cached_apply_s": 0.0006067999638617039,
+      "ppu_build_write_s": 0.03624309995211661,
+      "plproc_process_s": 0.1453281999565661,
+      "factor_memory_bytes": 8080000
+    },
+    {
+      "targets": 100000,
+      "sources": 100,
+      "bounded": true,
+      "max_absolute_error": 5.208701981729291e-06,
+      "ppu_factor_apply_s": 0.21016020001843572,
+      "ppu_cached_apply_s": 0.008901300025172532,
+      "ppu_build_write_s": 0.3450592999579385,
+      "plproc_process_s": 1.1442344000097364,
+      "factor_memory_bytes": 80800000
+    }
+  ]
+}

@@ -70,6 +70,14 @@ class PestUtilsLib:
             raise ValueError(f"init size is {len(init)} but {name} is {size}")
         return create_string_buffer(init, size)
 
+    def calc_gplane_factors(self, gplane, targets, **kwargs):
+        """Calculate reusable 3D GPLANE factors; see :class:`gplane.GPlane`.
+
+        ``targets`` is an ``(n, 3)`` array of XYZ cell centres in model units.
+        No model-grid connectivity or layer information is required.
+        """
+        return gplane.calc_factors(targets, lib=self, **kwargs)
+
     def inquire_modflow_binary_file_specs(
         self,
         filein: str | PathLike,

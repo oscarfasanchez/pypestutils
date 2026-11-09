@@ -4,6 +4,17 @@ module function_interfaces
 
   interface
 
+    integer(c_int) function calc_gplane_factors(ns,su,sv,nt,tx,ty,tz,origin,ex,ey,normal, &
+        nb,bu,bv,active,width,decay,power,ratio,bearing,tol,weights,influence) &
+        bind(C,name="calc_gplane_factors")
+      use iso_c_binding, only: c_int,c_double
+      integer(c_int), intent(in) :: ns,nt,nb,active(nt)
+      real(c_double), intent(in) :: su(ns),sv(ns),tx(nt),ty(nt),tz(nt)
+      real(c_double), intent(in) :: origin(3),ex(3),ey(3),normal(3),bu(nb),bv(nb)
+      real(c_double), intent(in) :: width,decay,power,ratio,bearing,tol
+      real(c_double), intent(out) :: weights(ns,nt),influence(nt)
+    end function calc_gplane_factors
+
     integer (kind=c_int) function inquire_modflow_binary_file_specs(            &
                          FileIn,FileOut,isim,itype,iprec,narray,ntime)          &
                      bind(C,name="inquire_modflow_binary_file_specs")

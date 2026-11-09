@@ -1,5 +1,11 @@
 # PyPestUtils
 
+The `codex/gplane-3d` development branch also adds
+[3D GPLANE structural overlays](docs/gplane.md), with
+[PLPROC comparisons and benchmarks](benchmarks/README.md).
+This feature requires building this branch's native library; it is not in
+the existing `v0.3.1-usg.1` release wheels.
+
 ## MODFLOW-USG / DISU fork
 
 This branch contains the USG/DISU additions described in

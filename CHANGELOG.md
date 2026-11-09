@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- 3D GPLANE structural overlays through `GPlane`, `GPlaneFactors`, and the
+  exported `calc_gplane_factors` native kernel: arbitrary XYZ targets,
+  polygon limits, anisotropic PLPROC-compatible IDW, Gaussian influence,
+  four actions, independent interpolation/blending transforms, target masks,
+  reusable factors and PLPROC geometry-specification exchange. Includes
+  analytic regression tests, real PLPROC 5 comparisons and benchmarks.
 - MODFLOW 6 DISU grids: `install_mf6_grid_from_file` reads DISU GRB files, the
   new `install_mf6_disu_layers` gives each node a layer, and
   `calc_mf6_interp_factors` then interpolates layer by layer as for DISV;

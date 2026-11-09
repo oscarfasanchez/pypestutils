@@ -35,6 +35,7 @@ pestutils_function_names = {
     "initialize_randgen": 1,
     "fieldgen2d_sva": 16,
     "fieldgen3d_sva": 21,
+    "calc_gplane_factors": 23,
 }
 
 data_dir = Path(__file__).parent / "data"

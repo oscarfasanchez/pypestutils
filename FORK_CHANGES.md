@@ -1,5 +1,23 @@
 # Changes in the pypestutils fork
 
+## GPLANE development branch
+
+`codex/gplane-3d` builds on the USG additions below and adds grid-independent
+3D GPLANE overlays: arbitrary plane orientation, optional polygon limits,
+anisotropic IDW, Gaussian influence, add/blend/clamped actions, independent
+log transforms, target masks, and reusable factors. A native Fortran kernel
+is exposed through `pypestutils.gplane.GPlane` and
+`PestUtilsLib.calc_gplane_factors`. Geometry specifications can be exchanged
+with PLPROC.
+
+See [the API guide](docs/gplane.md) and
+[PLPROC validation and benchmarks](benchmarks/README.md). This development
+feature has version `0.3.2.dev0+gplane.1`; the existing release below does not
+include it. This covers the core overlay workflow, not PLPROC's entire script
+language or source-selection machinery.
+
+## USG release
+
 Prebuilt wheels and installation instructions are available in the
 [v0.3.1-usg.1 release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.1-usg.1).
 Use [environment-usg.yml](environment-usg.yml) to create a Conda environment
