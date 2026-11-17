@@ -1,29 +1,28 @@
-# GPLANE, MODFLOW-USG and DISU fork release
+# ppuplus: combined pypestutils fork release
 
-These notes describe the earlier published release. For the combined `ppuplus`
-branch (`0.3.3+usg.1`), including `fieldgen3d_sva2`, see [README.md](README.md).
-The wheel links below install `0.3.2+usg.1` and do not include that new feature.
-
-Tag **`v0.3.2-usg.1`**, Python package version **`0.3.2+usg.1`**.
+Tag **`v0.3.3-usg.1`**, Python package version **`0.3.3+usg.1`**.
 The distribution and import name remain `pypestutils`. This independent fork
 release is hosted on GitHub.
 
-This release adds native 3D GPLANE structural overlays: arbitrary XYZ targets,
+This release combines all fork feature branches on `ppuplus`. It adds
+`PestUtilsLib.fieldgen3d_sva2` for 3D stochastic fields from user-supplied source
+variates, with separate source/target points and an optional summation cutoff.
+It includes native 3D GPLANE structural overlays: arbitrary XYZ targets,
 polygon limits, anisotropic PLPROC-compatible IDW, Gaussian influence, four
 actions, independent log transforms, masks, reusable factors and PLPROC
 geometry-specification exchange. It also includes the previous MODFLOW-USG,
 MODFLOW 6 DISU, layer-aware helper and interpolation-performance changes.
 
-[Changes](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.2-usg.1/FORK_CHANGES.md)
-· [GPLANE guide](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.2-usg.1/docs/gplane.md)
-· [PLPROC benchmarks](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.2-usg.1/benchmarks/README.md)
+[Changes](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.3-usg.1/FORK_CHANGES.md)
+· [GPLANE guide](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.3-usg.1/docs/gplane.md)
+· [PLPROC benchmarks](https://github.com/oscarfasanchez/pypestutils/blob/v0.3.3-usg.1/benchmarks/README.md)
 
 ## Install with pip
 
 Run this on a supported platform; pip downloads the matching compiled wheel:
 
 ```sh
-python -m pip install -r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt
+python -m pip install -r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.3-usg.1/requirements-usg.txt
 ```
 
 No repository checkout, Fortran compiler, or manual wheel download is required.
@@ -33,7 +32,7 @@ An ordinary `pip install pypestutils` continues to select upstream from PyPI.
 For a direct Windows x64 wheel installation:
 
 ```sh
-python -m pip install "pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/pypestutils-0.3.2+usg.1-py3-none-win_amd64.whl"
+python -m pip install "pypestutils @ https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.3-usg.1/pypestutils-0.3.3+usg.1-py3-none-win_amd64.whl"
 ```
 
 ## Install with Conda / environment.yml
@@ -52,7 +51,7 @@ dependencies:
   - python=3.12
   - pip
   - pip:
-      - "-r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt"
+      - "-r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.3-usg.1/requirements-usg.txt"
 ```
 
 This installs the GitHub wheel through pip inside the Conda environment. Remove
@@ -71,11 +70,12 @@ systems are not covered.
 After installation:
 
 ```sh
-python -c "from pypestutils.version import __version__; from pypestutils.pestutilslib import PestUtilsLib; print(__version__); print(PestUtilsLib().pestutils.calc_gplane_factors)"
+python -c "from pypestutils.version import __version__; from pypestutils.pestutilslib import PestUtilsLib; lib = PestUtilsLib(); print(__version__); print(lib.pestutils.calc_gplane_factors); print(lib.pestutils.fieldgen3d_sva2)"
 ```
 
-The GPLANE implementation passed 155 local tests (eight existing skips),
-including 36 real PLPROC 5.0 comparisons. The feature commit also passed all
+The combined installed wheel passed 164 local non-notebook tests (eight existing
+driver skips), including 36 real PLPROC 5.0 comparisons and four SVA2 utility
+reference fields. The integration commit also passed all
 six Linux/macOS/Windows CI jobs with Python 3.10 and 3.14. The wheel pipeline
 checks that Python imports the installed wheel and loads its bundled native
 library, then runs the non-notebook regression suite on every wheel platform,

@@ -9,34 +9,18 @@ from user-supplied source variates. The individual feature branches remain
 available. See [FORK_CHANGES.md](FORK_CHANGES.md) and the
 [PLPROC comparisons and benchmarks](benchmarks/README.md).
 
-The integrated package version is `0.3.3+usg.1`. To install all features from
-this branch, clone it and compile the native library using [BUILD.md](BUILD.md)
-before installing the Python package:
+The integrated package version is `0.3.3+usg.1`. Prebuilt wheels include all
+features above. Install with pip using the platform-specific requirements:
 
 ```sh
-git clone --branch ppuplus https://github.com/oscarfasanchez/pypestutils.git
-cd pypestutils
-# Follow BUILD.md to compile and copy the native library into pypestutils/lib/.
-python -m pip install .
+python -m pip install -r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.3-usg.1/requirements-usg.txt
 ```
 
-Both the Python package and native library must come from `ppuplus`.
-The package and import name remain `pypestutils`; use separate environments
-for upstream and fork installations.
-
-### Earlier prebuilt GPLANE / USG release
+### Combined fork release
 
 Prebuilt wheels are available in the
-[v0.3.2-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.2-usg.1)
-with package version `0.3.2+usg.1`. These earlier wheels include GPLANE and
-grid support, but do not include `fieldgen3d_sva2` or all `ppuplus` changes.
-No compiler or repository checkout is needed for that earlier release.
-
-Install with pip (the requirements file selects the platform wheel):
-
-```sh
-python -m pip install -r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt
-```
+[v0.3.3-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.3-usg.1)
+with package version `0.3.3+usg.1`. No compiler or repository checkout is needed.
 
 For Conda, download [environment-usg.yml](environment-usg.yml) and run
 `conda env create -f environment-usg.yml`, or put this in your own file:
@@ -46,7 +30,7 @@ dependencies:
   - python=3.12
   - pip
   - pip:
-      - "-r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.2-usg.1/requirements-usg.txt"
+      - "-r https://github.com/oscarfasanchez/pypestutils/releases/download/v0.3.3-usg.1/requirements-usg.txt"
 ```
 
 The automatic requirements support Windows x64, Linux glibc 2.27+ on x64 or

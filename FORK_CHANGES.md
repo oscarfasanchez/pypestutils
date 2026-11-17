@@ -15,9 +15,9 @@ natural/log properties, per-target statistics, and an optional summation
 cutoff are supported. Tests compare four fields with saved FIELDGEN3D_SVA2
 utility outputs and verify variance, mean and variate scaling.
 
-See the [README](README.md) for installation from the integrated branch.
-The existing `v0.3.2-usg.1` release wheels predate this integration and do not
-contain `fieldgen3d_sva2`.
+The combined release is `v0.3.3-usg.1`, including compiled wheels for all
+features above. See the [README](README.md) for installation. The older
+`v0.3.2-usg.1` wheels predate this integration and lack `fieldgen3d_sva2`.
 
 Integration validation on Windows x64 / Python 3.11 (2026-11-17): a fresh
 Fortran build and installed wheel passed the GPLANE/SVA2 wheel check and
