@@ -36,6 +36,7 @@ pestutils_function_names = {
     "fieldgen2d_sva": 16,
     "fieldgen3d_sva": 21,
     "calc_gplane_factors": 23,
+    "fieldgen3d_sva2": 24,
 }
 
 data_dir = Path(__file__).parent / "data"

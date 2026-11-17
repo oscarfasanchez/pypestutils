@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.3.3+usg.1] - 2026-11-17
+### Added
+- The `ppuplus` integration branch combines all fork feature branches.
+- `fieldgen3d_sva2` computes one 3D stochastic field from user-supplied normal
+  variates at source points (as the PEST utility FIELDGEN3D_SVA2), so the
+  variates can be parameters; source points need not coincide with targets,
+  and an optional summation cutoff trades accuracy for speed.
+
 ### Fixed
 - Pin and verify the MF6/PEST++ executables used by example notebooks, cache
   them across notebook/CI runs, and fall back to GitHub's asset API on download

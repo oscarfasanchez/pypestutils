@@ -1,14 +1,36 @@
 # PyPestUtils
 
-## GPLANE / MODFLOW-USG / DISU fork
+## ppuplus: all fork features
 
-This fork includes [3D GPLANE structural overlays](docs/gplane.md),
-MODFLOW-USG and MODFLOW 6 DISU support. See [FORK_CHANGES.md](FORK_CHANGES.md)
-and the [PLPROC comparisons and benchmarks](benchmarks/README.md).
+The `ppuplus` branch combines [3D GPLANE structural overlays](docs/gplane.md),
+MODFLOW-USG and MODFLOW 6 DISU support, layer-aware helpers, faster
+interpolation, and `PestUtilsLib.fieldgen3d_sva2` for 3D stochastic fields
+from user-supplied source variates. The individual feature branches remain
+available. See [FORK_CHANGES.md](FORK_CHANGES.md) and the
+[PLPROC comparisons and benchmarks](benchmarks/README.md).
+
+The integrated package version is `0.3.3+usg.1`. To install all features from
+this branch, clone it and compile the native library using [BUILD.md](BUILD.md)
+before installing the Python package:
+
+```sh
+git clone --branch ppuplus https://github.com/oscarfasanchez/pypestutils.git
+cd pypestutils
+# Follow BUILD.md to compile and copy the native library into pypestutils/lib/.
+python -m pip install .
+```
+
+Both the Python package and native library must come from `ppuplus`.
+The package and import name remain `pypestutils`; use separate environments
+for upstream and fork installations.
+
+### Earlier prebuilt GPLANE / USG release
 
 Prebuilt wheels are available in the
 [v0.3.2-usg.1 GitHub Release](https://github.com/oscarfasanchez/pypestutils/releases/tag/v0.3.2-usg.1)
-with package version `0.3.2+usg.1`. No compiler or repository checkout is needed.
+with package version `0.3.2+usg.1`. These earlier wheels include GPLANE and
+grid support, but do not include `fieldgen3d_sva2` or all `ppuplus` changes.
+No compiler or repository checkout is needed for that earlier release.
 
 Install with pip (the requirements file selects the platform wheel):
 

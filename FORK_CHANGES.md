@@ -1,5 +1,31 @@
 # Changes in the pypestutils fork
 
+## ppuplus integration branch
+
+`ppuplus` is the combined branch for all fork features, with package version
+`0.3.3+usg.1`. It merges `codex/gplane-3d` and `feat/fieldgen3d-sva2`, including
+the already integrated `feat/disu-grids`, `feat/mod2obs-disu-layers`,
+`feat/mfusg-grids`, and `perf/interp-factor-ring-search` changes. The existing
+feature branches are preserved.
+
+In addition to all capabilities below, `PestUtilsLib.fieldgen3d_sva2` computes
+3D stochastic fields from user-supplied independent normal variates and source
+volumes. Source points can differ from targets; anisotropy, rotations,
+natural/log properties, per-target statistics, and an optional summation
+cutoff are supported. Tests compare four fields with saved FIELDGEN3D_SVA2
+utility outputs and verify variance, mean and variate scaling.
+
+See the [README](README.md) for installation from the integrated branch.
+The existing `v0.3.2-usg.1` release wheels predate this integration and do not
+contain `fieldgen3d_sva2`.
+
+Integration validation on Windows x64 / Python 3.11 (2026-11-17): a fresh
+Fortran build and installed wheel passed the GPLANE/SVA2 wheel check and
+164 non-notebook tests, including 36 live PLPROC comparisons and all four
+SVA2 reference fields. Eight existing driver cases were skipped for missing
+full input datasets. Notebook tests were excluded from this local run.
+Python lint and formatting checks passed for the changed files.
+
 ## GPLANE release additions
 
 `codex/gplane-3d` builds on the USG additions below and adds grid-independent
@@ -67,4 +93,4 @@ for the new grid readers, installers, interpolation routines, and observation
 mapping. Regression tests and small grid and head-file fixtures cover DISU,
 USG, layer handling, and interpolation behavior.
 
-See `CHANGELOG.md` under **Unreleased** for the public API details.
+See `CHANGELOG.md` for the public API details by version.

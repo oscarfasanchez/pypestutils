@@ -1,5 +1,9 @@
 # GPLANE, MODFLOW-USG and DISU fork release
 
+These notes describe the earlier published release. For the combined `ppuplus`
+branch (`0.3.3+usg.1`), including `fieldgen3d_sva2`, see [README.md](README.md).
+The wheel links below install `0.3.2+usg.1` and do not include that new feature.
+
 Tag **`v0.3.2-usg.1`**, Python package version **`0.3.2+usg.1`**.
 The distribution and import name remain `pypestutils`. This independent fork
 release is hosted on GitHub.
